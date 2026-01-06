@@ -4,6 +4,7 @@ import com.arceuuscc.plugin.http.HttpEventClient;
 import com.arceuuscc.plugin.models.Event;
 import com.arceuuscc.plugin.ui.ArceuusCCOverlay;
 import com.arceuuscc.plugin.ui.ArceuusCCPanel;
+import com.google.gson.Gson;
 import com.google.inject.Provides;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
+import okhttp3.OkHttpClient;
 
 import javax.inject.Inject;
 import javax.swing.*;
@@ -55,6 +57,12 @@ public class ArceuusCCPlugin extends Plugin {
 
     @Inject
     private Notifier notifier;
+
+    @Inject
+    private OkHttpClient okHttpClient;
+
+    @Inject
+    private Gson gson;
 
     @Getter
     private HttpEventClient httpClient;
@@ -110,7 +118,7 @@ public class ArceuusCCPlugin extends Plugin {
             clientToolbar.addNavigation(navButton);
 
             // Start HTTP client for polling events
-            httpClient = new HttpEventClient(API_URL, this);
+            httpClient = new HttpEventClient(API_URL, this, okHttpClient, gson);
             httpClient.start();
         } catch (Exception e) {
             log.error("Error during startup", e);

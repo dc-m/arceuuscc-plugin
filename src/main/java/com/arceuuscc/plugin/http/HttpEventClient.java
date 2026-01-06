@@ -18,26 +18,23 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class HttpEventClient {
-    private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
+    private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
     private static final String API_KEY = "arceuus-cc-runelite-2026";
 
     private final String apiUrl;
     private final ArceuusCCPlugin plugin;
     private final OkHttpClient httpClient;
-    private final Gson gson = new Gson();
+    private final Gson gson;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     private boolean connected = false;
     private boolean running = false;
 
-    public HttpEventClient(String apiUrl, ArceuusCCPlugin plugin) {
+    public HttpEventClient(String apiUrl, ArceuusCCPlugin plugin, OkHttpClient httpClient, Gson gson) {
         this.apiUrl = apiUrl;
         this.plugin = plugin;
-        this.httpClient = new OkHttpClient.Builder()
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(10, TimeUnit.SECONDS)
-                .writeTimeout(10, TimeUnit.SECONDS)
-                .build();
+        this.httpClient = httpClient;
+        this.gson = gson;
     }
 
     public void start() {
@@ -122,7 +119,7 @@ public class HttpEventClient {
         Request request = new Request.Builder()
                 .url(apiUrl + "?action=signup")
                 .header("X-API-Key", API_KEY)
-                .post(RequestBody.create(JSON, gson.toJson(payload)))
+                .post(RequestBody.create(JSON_MEDIA_TYPE, gson.toJson(payload)))
                 .build();
 
         httpClient.newCall(request).enqueue(new Callback() {
@@ -155,7 +152,7 @@ public class HttpEventClient {
         Request request = new Request.Builder()
                 .url(apiUrl + "?action=unsignup")
                 .header("X-API-Key", API_KEY)
-                .post(RequestBody.create(JSON, gson.toJson(payload)))
+                .post(RequestBody.create(JSON_MEDIA_TYPE, gson.toJson(payload)))
                 .build();
 
         httpClient.newCall(request).enqueue(new Callback() {
