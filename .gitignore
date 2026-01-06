@@ -22,3 +22,5 @@ Thumbs.db
 create_icon.ps1
 
 src/main/resources/arceuuscc.properties.example
+
+RunClient.bat
