@@ -96,7 +96,7 @@ public class HttpEventClient {
                     }
 
                     String json = body.string();
-                    JsonObject jsonObj = JsonParser.parseString(json).getAsJsonObject();
+                    JsonObject jsonObj = new JsonParser().parse(json).getAsJsonObject();
                     JsonArray eventsArray = jsonObj.getAsJsonArray("events");
                     List<Event> events = gson.fromJson(eventsArray, new TypeToken<List<Event>>(){}.getType());
 

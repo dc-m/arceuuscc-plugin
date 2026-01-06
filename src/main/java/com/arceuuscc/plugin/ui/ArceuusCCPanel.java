@@ -12,6 +12,7 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -29,6 +30,7 @@ public class ArceuusCCPanel extends PluginPanel {
     private final JButton refreshButton;
 
     private static final DateTimeFormatter DISPLAY_FORMATTER = DateTimeFormatter.ofPattern("EEE, MMM d 'at' HH:mm");
+    private static final DateTimeFormatter INPUT_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     // Font that supports emoji characters
     private static final String EMOJI_FONT_NAME = getEmojiFontName();
