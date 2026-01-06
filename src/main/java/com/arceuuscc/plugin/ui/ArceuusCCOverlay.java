@@ -3,6 +3,7 @@ package com.arceuuscc.plugin.ui;
 import com.arceuuscc.plugin.ArceuusCCConfig;
 import com.arceuuscc.plugin.ArceuusCCPlugin;
 import com.arceuuscc.plugin.models.Event;
+import com.arceuuscc.plugin.util.DateTimeUtils;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -14,13 +15,10 @@ import net.runelite.client.ui.overlay.components.TitleComponent;
 import javax.inject.Inject;
 import java.awt.*;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 public class ArceuusCCOverlay extends Overlay {
-    private static final DateTimeFormatter INPUT_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
     private static final Color ARCEUUS_PURPLE = new Color(128, 0, 128);
     private static final Color LIVE_GREEN = new Color(50, 200, 50);
     private static final Color ENDING_SOON_RED = new Color(255, 100, 100);
@@ -225,12 +223,7 @@ public class ArceuusCCOverlay extends Overlay {
     }
 
     private LocalDateTime parseDateTime(String isoTime) {
-        if (isoTime == null) return LocalDateTime.MIN;
-        try {
-            return LocalDateTime.parse(isoTime, INPUT_FORMATTER);
-        } catch (DateTimeParseException e) {
-            return LocalDateTime.MIN;
-        }
+        return DateTimeUtils.parseDateTime(isoTime);
     }
 
     /**

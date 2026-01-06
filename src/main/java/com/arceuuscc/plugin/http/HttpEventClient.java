@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class HttpEventClient {
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
+    private static final String API_KEY = "arceuus-cc-runelite-2026";
 
     private final String apiUrl;
     private final ArceuusCCPlugin plugin;
@@ -120,6 +121,7 @@ public class HttpEventClient {
 
         Request request = new Request.Builder()
                 .url(apiUrl + "?action=signup")
+                .header("X-API-Key", API_KEY)
                 .post(RequestBody.create(JSON, gson.toJson(payload)))
                 .build();
 
@@ -152,6 +154,7 @@ public class HttpEventClient {
 
         Request request = new Request.Builder()
                 .url(apiUrl + "?action=unsignup")
+                .header("X-API-Key", API_KEY)
                 .post(RequestBody.create(JSON, gson.toJson(payload)))
                 .build();
 
