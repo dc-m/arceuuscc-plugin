@@ -39,8 +39,7 @@ import java.util.concurrent.ScheduledExecutorService;
 @PluginDescriptor(
 	name = "Arceuus CC",
 	description = "Clan event management for Arceuus CC - view events, sign up, and coordinate with your clan. This plugin submits your username to a 3rd party server not controlled or verified by the RuneLite Developers.",
-	tags = {"clan", "events", "arceuus", "cc", "signup"},
-	enabledByDefault = false
+	tags = {"clan", "events", "arceuus", "cc", "signup"}
 )
 public class ArceuusCCPlugin extends Plugin
 {
