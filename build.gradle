@@ -18,11 +18,11 @@ dependencies {
     compileOnly 'org.projectlombok:lombok:1.18.30'
     annotationProcessor 'org.projectlombok:lombok:1.18.30'
 
-    // HTTP client
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    // HTTP client (provided by RuneLite)
+    compileOnly 'com.squareup.okhttp3:okhttp:4.12.0'
 
-    // JSON handling
-    implementation 'com.google.code.gson:gson:2.10.1'
+    // JSON handling (provided by RuneLite)
+    compileOnly 'com.google.code.gson:gson:2.10.1'
 
     testImplementation 'junit:junit:4.12'
     testImplementation group: 'net.runelite', name: 'client', version: runeLiteVersion
