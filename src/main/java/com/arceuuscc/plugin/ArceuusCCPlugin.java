@@ -211,6 +211,7 @@ public class ArceuusCCPlugin extends Plugin
 			{
 				panel.updatePlayerInfo();
 				panel.updateEvents();
+				panel.updateNewsletters();
 			});
 		}
 	}
@@ -262,6 +263,7 @@ public class ArceuusCCPlugin extends Plugin
 		{
 			panel.updatePlayerInfo();
 			panel.updateEvents();
+			panel.updateNewsletters();
 		});
 	}
 
@@ -538,6 +540,7 @@ public class ArceuusCCPlugin extends Plugin
 		{
 			lastSeenNewsletterId = newsletter.getId();
 			saveLastSeenNewsletterId();
+			SwingUtilities.invokeLater(() -> panel.updateNewsletters());
 		}
 	}
 
@@ -558,6 +561,11 @@ public class ArceuusCCPlugin extends Plugin
 			return false;
 		}
 		return latestNewsletter.getId() > lastSeenNewsletterId;
+	}
+
+	public boolean isNewsletterSeen(int newsletterId)
+	{
+		return newsletterId <= lastSeenNewsletterId;
 	}
 
 	public String getNewsletterImageUrl(int newsletterId)

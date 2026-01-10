@@ -71,20 +71,21 @@ The overlay shows:
 
 ## Changelog
 
+See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
+
 ### Version 1.1.0
-- Added newsletter support with reading and notifications
-- Added mark as read system for events and newsletters
-- Added login notifications for unread content
-- Added newsletter overlay alert
-- Added persistence for read state across restarts
-- Added visual indicators (NEW badge, gold border) for unseen events
+- **Newsletter Support**: Browse and read clan newsletters with full image rendering
+- **Read/Unread Tracking**: Mail icons show whether content has been viewed (closed = unread, open = read)
+- **Login Notifications**: Get notified of any unread content when you log in
+- **Newsletter Overlay**: In-game alert when new newsletters are published
+- **Persistent State**: Read status saves across client restarts
 
 ### Version 1.0.1
-- Fixed game filter errors
-- Removed unknown crew setting
+- Fixed game filter errors during certain activities
+- Removed deprecated crew membership setting
 
 ### Version 1.0.0
-- Initial release
+- Initial release with event viewing, signup functionality, real-time sync, and notifications
 
 ## Support
 
