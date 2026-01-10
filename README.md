@@ -1,14 +1,16 @@
 # Arceuus CC Plugin
 
-A RuneLite plugin for the **Arceuus CC** clan that displays upcoming clan events and allows members to sign up directly from the game.
+A RuneLite plugin for the **Arceuus CC** clan that displays upcoming clan events, newsletters, and allows members to sign up directly from the game.
 
 ## Features
 
 - **Event Panel** - View all upcoming, active, and recent clan events in the RuneLite sidebar
-- **In-Game Overlay** - See live event countdowns while playing
+- **Newsletter Support** - Read clan newsletters directly in RuneLite
+- **In-Game Overlay** - See live event countdowns and newsletter alerts while playing
 - **One-Click Signup** - Sign up for events directly from the plugin
-- **Real-Time Updates** - Events sync automatically with Discord
-- **Notifications** - Get alerts for new events, events starting soon, and more
+- **Real-Time Updates** - Events and newsletters sync automatically
+- **Notifications** - Get alerts for new events, newsletters, events starting soon, and more
+- **Mark as Read** - Track which events and newsletters you've seen
 
 ## How to Use
 
@@ -18,11 +20,14 @@ Click the Arceuus CC icon in the RuneLite sidebar to open the events panel. Even
 | Color | Status |
 |-------|--------|
 | Green | Currently active |
-| Yellow | Starting soon (within 15 minutes) |
+| Gold | New/unseen event |
 | Blue | Upcoming |
 | Grey | Completed |
 
-Click on any event to see full details including description and signup list.
+Click **View Details** on any event to see full details including description and signup list.
+
+### Newsletters
+Switch to the **Newsletters** tab to view clan newsletters. The latest newsletter is highlighted at the top. Click **Read** to view the full newsletter image.
 
 ### Signing Up for Events
 1. Log into Old School RuneScape
@@ -35,25 +40,51 @@ You can also withdraw your signup by clicking the button again.
 ### In-Game Overlay
 The overlay shows:
 - Active events with time remaining
-- Upcoming events starting within 15 minutes
+- Upcoming events starting within 3 hours
+- New newsletter alerts
 - Whether you're signed up for displayed events
 
 ### Configuration Options
 
 | Setting | Description |
 |---------|-------------|
+| **Overlay** | |
 | Show Overlay | Toggle the in-game event overlay |
 | Show Active Event | Display currently running events |
-| Show Starting Soon | Display events starting within 15 minutes |
+| Show Starting Soon | Highlight events starting within 30 minutes |
 | Show Upcoming | Display future scheduled events |
-| Show Ending Soon | Highlight events ending within 5 minutes |
-| Notifications | Enable desktop notifications for events |
-| Auto Refresh | Automatically refresh the event list |
+| Show Ending Soon | Highlight events ending within 30 minutes |
+| Show Newsletter Alert | Display overlay when new newsletter available |
+| **Notifications** | |
+| Enable Notifications | Master toggle for all notifications |
+| Notify Event Starting | Alert when events are about to start |
+| Notify New Event | Alert when new events are posted |
+| Notify New Newsletter | Alert when new newsletters are published |
+| Unread Notifications on Login | Show notifications for unread content when you log in |
+| **General** | |
+| Auto Refresh | Automatically refresh content periodically |
 
 ## Requirements
 
 - RuneLite client
 - Membership in the Arceuus CC clan (for signup features)
+
+## Changelog
+
+### Version 1.1.0
+- Added newsletter support with reading and notifications
+- Added mark as read system for events and newsletters
+- Added login notifications for unread content
+- Added newsletter overlay alert
+- Added persistence for read state across restarts
+- Added visual indicators (NEW badge, gold border) for unseen events
+
+### Version 1.0.1
+- Fixed game filter errors
+- Removed unknown crew setting
+
+### Version 1.0.0
+- Initial release
 
 ## Support
 

@@ -2,6 +2,8 @@ package com.arceuuscc.plugin.http;
 
 import com.arceuuscc.plugin.ArceuusCCPlugin;
 import com.arceuuscc.plugin.models.Event;
+import com.arceuuscc.plugin.models.Newsletter;
+import com.arceuuscc.plugin.models.PluginSettings;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -21,6 +23,7 @@ public class HttpEventClient
 {
 	private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
 	private static final String API_KEY = "arceuus-cc-runelite-2026";
+	private static final int DEFAULT_POLLING_INTERVAL = 30;
 
 	private final String apiUrl;
 	private final ArceuusCCPlugin plugin;
@@ -30,6 +33,7 @@ public class HttpEventClient
 
 	private ScheduledFuture<?> pollingTask;
 	private boolean connected = false;
+	private int pollingInterval = DEFAULT_POLLING_INTERVAL;
 
 	public HttpEventClient(String apiUrl, ArceuusCCPlugin plugin, OkHttpClient httpClient, Gson gson, ScheduledExecutorService executor)
 	{
@@ -47,12 +51,48 @@ public class HttpEventClient
 			return;
 		}
 
+		// Fetch settings first, then start polling
+		requestSettings();
+
 		// Initial fetch
 		requestEvents();
 
-		// Poll every 30 seconds
-		pollingTask = executor.scheduleAtFixedRate(this::requestEvents, 30, 30, TimeUnit.SECONDS);
+		// Poll at configured interval (default 30 seconds, 0 = disabled)
+		startPolling();
 		log.info("HTTP Event Client started, polling {}", apiUrl);
+	}
+
+	private void startPolling()
+	{
+		// Cancel existing polling task if any
+		if (pollingTask != null)
+		{
+			pollingTask.cancel(false);
+			pollingTask = null;
+		}
+
+		// If polling interval is 0, polling is disabled
+		if (pollingInterval <= 0)
+		{
+			log.info("Event polling disabled (interval = 0)");
+			return;
+		}
+
+		pollingTask = executor.scheduleAtFixedRate(() -> {
+			requestEvents();
+			requestLatestNewsletter();
+			requestNewsletters(10);
+		}, pollingInterval, pollingInterval, TimeUnit.SECONDS);
+		log.info("Event and newsletter polling started with interval: {} seconds", pollingInterval);
+	}
+
+	public void updatePollingInterval(int newInterval)
+	{
+		if (newInterval != pollingInterval)
+		{
+			pollingInterval = newInterval;
+			startPolling();
+		}
 	}
 
 	public void stop()
@@ -205,6 +245,188 @@ public class HttpEventClient
 						String errorBody = body != null ? body.string() : "Unknown error";
 						log.error("Unsignup failed: {}", errorBody);
 					}
+				}
+			}
+		});
+	}
+
+	// ==================== NEWSLETTER METHODS ====================
+
+	/**
+	 * Request the latest newsletter from the API.
+	 */
+	public void requestLatestNewsletter()
+	{
+		String newsletterUrl = apiUrl.replace("events.php", "newsletters.php") + "?action=latest";
+
+		Request request = new Request.Builder()
+			.url(newsletterUrl)
+			.get()
+			.build();
+
+		httpClient.newCall(request).enqueue(new Callback()
+		{
+			@Override
+			public void onFailure(Call call, IOException e)
+			{
+				log.error("Failed to fetch latest newsletter", e);
+			}
+
+			@Override
+			public void onResponse(Call call, Response response) throws IOException
+			{
+				try (ResponseBody body = response.body())
+				{
+					if (!response.isSuccessful() || body == null)
+					{
+						log.error("Error fetching newsletter: {}", response.code());
+						return;
+					}
+
+					String json = body.string();
+					JsonObject jsonObj = new JsonParser().parse(json).getAsJsonObject();
+
+					if (jsonObj.has("newsletter") && !jsonObj.get("newsletter").isJsonNull())
+					{
+						Newsletter newsletter = gson.fromJson(jsonObj.get("newsletter"), Newsletter.class);
+						plugin.onNewsletterReceived(newsletter);
+						log.debug("Fetched newsletter: {}", newsletter.getTitle());
+					}
+				}
+				catch (Exception e)
+				{
+					log.error("Error parsing newsletter response", e);
+				}
+			}
+		});
+	}
+
+	/**
+	 * Request list of recent newsletters.
+	 */
+	public void requestNewsletters(int limit)
+	{
+		String newsletterUrl = apiUrl.replace("events.php", "newsletters.php") + "?limit=" + limit;
+
+		Request request = new Request.Builder()
+			.url(newsletterUrl)
+			.get()
+			.build();
+
+		httpClient.newCall(request).enqueue(new Callback()
+		{
+			@Override
+			public void onFailure(Call call, IOException e)
+			{
+				log.error("Failed to fetch newsletters", e);
+			}
+
+			@Override
+			public void onResponse(Call call, Response response) throws IOException
+			{
+				try (ResponseBody body = response.body())
+				{
+					if (!response.isSuccessful() || body == null)
+					{
+						log.error("Error fetching newsletters: {}", response.code());
+						return;
+					}
+
+					String json = body.string();
+					JsonObject jsonObj = new JsonParser().parse(json).getAsJsonObject();
+					JsonArray newslettersArray = jsonObj.getAsJsonArray("newsletters");
+					List<Newsletter> newsletters = gson.fromJson(newslettersArray, new TypeToken<List<Newsletter>>(){}.getType());
+
+					plugin.onNewslettersReceived(newsletters);
+					log.debug("Fetched {} newsletters", newsletters.size());
+				}
+				catch (Exception e)
+				{
+					log.error("Error parsing newsletters response", e);
+				}
+			}
+		});
+	}
+
+	/**
+	 * Get newsletter image URL.
+	 */
+	public String getNewsletterImageUrl(int newsletterId)
+	{
+		return apiUrl.replace("events.php", "newsletters.php") + "?id=" + newsletterId + "&image=1";
+	}
+
+	// ==================== SETTINGS METHODS ====================
+
+	/**
+	 * Request plugin settings from the API.
+	 */
+	public void requestSettings()
+	{
+		String settingsUrl = apiUrl.replace("events.php", "settings.php");
+
+		Request request = new Request.Builder()
+			.url(settingsUrl)
+			.get()
+			.build();
+
+		httpClient.newCall(request).enqueue(new Callback()
+		{
+			@Override
+			public void onFailure(Call call, IOException e)
+			{
+				log.error("Failed to fetch plugin settings", e);
+				// Use defaults if settings fetch fails
+			}
+
+			@Override
+			public void onResponse(Call call, Response response) throws IOException
+			{
+				try (ResponseBody body = response.body())
+				{
+					if (!response.isSuccessful() || body == null)
+					{
+						log.error("Error fetching settings: {}", response.code());
+						return;
+					}
+
+					String json = body.string();
+					JsonObject jsonObj = new JsonParser().parse(json).getAsJsonObject();
+
+					if (jsonObj.has("settings") && !jsonObj.get("settings").isJsonNull())
+					{
+						JsonObject settingsObj = jsonObj.getAsJsonObject("settings");
+
+						PluginSettings settings = PluginSettings.builder()
+							.eventPollingInterval(settingsObj.has("event_polling_interval") ?
+								settingsObj.get("event_polling_interval").getAsInt() : 30)
+							.requireClanMembership(settingsObj.has("require_clan_membership") ?
+								settingsObj.get("require_clan_membership").getAsBoolean() : true)
+							.clanName(settingsObj.has("clan_name") ?
+								settingsObj.get("clan_name").getAsString() : "Arceuus")
+							.showNewsletterNotifications(settingsObj.has("show_newsletter_notifications") ?
+								settingsObj.get("show_newsletter_notifications").getAsBoolean() : true)
+							.build();
+
+						// Update polling interval
+						int newInterval = settings.getEventPollingInterval();
+						if (newInterval != pollingInterval)
+						{
+							pollingInterval = newInterval;
+							// Don't restart polling here - it will be started in start()
+						}
+
+						plugin.onSettingsReceived(settings);
+						log.info("Loaded plugin settings: polling={}s, requireClan={}, clanName={}, showNewsletterNotifications={}",
+							settings.getEventPollingInterval(),
+							settings.isRequireClanMembership(),
+							settings.getClanName(),
+							settings.isShowNewsletterNotifications());
+					}
+				}
+				catch (Exception e)
+				{
+					log.error("Error parsing settings response", e);
 				}
 			}
 		});

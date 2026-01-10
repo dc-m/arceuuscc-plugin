@@ -143,6 +143,42 @@ public interface ArceuusCCConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "notifyNewNewsletter",
+		name = "New Newsletter",
+		description = "Notify when a new newsletter is published",
+		position = 5,
+		section = notificationSection
+	)
+	default boolean notifyNewNewsletter()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "notifyUnreadOnLogin",
+		name = "Unread Notifications on Login",
+		description = "Show notifications for unread events/newsletters when you log in",
+		position = 6,
+		section = notificationSection
+	)
+	default boolean notifyUnreadOnLogin()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "showNewsletterOverlay",
+		name = "Show Newsletter Alert",
+		description = "Show an overlay alert when a new newsletter is available",
+		position = 5,
+		section = overlaySection
+	)
+	default boolean showNewsletterOverlay()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "autoRefresh",
 		name = "Auto Refresh",
 		description = "Automatically refresh events list periodically",

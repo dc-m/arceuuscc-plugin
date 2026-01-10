@@ -2,6 +2,8 @@ package com.arceuuscc.plugin;
 
 import com.arceuuscc.plugin.http.HttpEventClient;
 import com.arceuuscc.plugin.models.Event;
+import com.arceuuscc.plugin.models.Newsletter;
+import com.arceuuscc.plugin.models.PluginSettings;
 import com.arceuuscc.plugin.ui.ArceuusCCOverlay;
 import com.arceuuscc.plugin.ui.ArceuusCCPanel;
 import com.google.gson.Gson;
@@ -69,6 +71,13 @@ public class ArceuusCCPlugin extends Plugin
 	@Inject
 	private ScheduledExecutorService executor;
 
+	@Inject
+	private ConfigManager configManager;
+
+	private static final String CONFIG_GROUP = "arceuuscc";
+	private static final String SEEN_EVENTS_KEY = "seenEventIds";
+	private static final String LAST_SEEN_NEWSLETTER_KEY = "lastSeenNewsletterId";
+
 	@Getter
 	private HttpEventClient httpClient;
 
@@ -79,13 +88,30 @@ public class ArceuusCCPlugin extends Plugin
 	@Getter
 	private List<Event> events = new ArrayList<>();
 
+	@Getter
+	private List<Newsletter> newsletters = new ArrayList<>();
+
+	@Getter
+	private Newsletter latestNewsletter = null;
+
+	private int lastSeenNewsletterId = -1;
+	private int lastKnownNewsletterId = -1; // For detecting new newsletters during polling
+
 	private final Map<String, String> lastEventStatus = new HashMap<>();
+
+	// Track which events the user has seen (by event ID)
+	private final java.util.Set<String> seenEventIds = new java.util.HashSet<>();
+	private boolean initialEventsLoaded = false;
+	private boolean loginNotificationSent = false;
 
 	@Getter
 	private boolean inClan = false;
 
 	@Getter
 	private String playerName = null;
+
+	@Getter
+	private PluginSettings pluginSettings = PluginSettings.builder().build();
 
 	@Provides
 	ArceuusCCConfig provideConfig(ConfigManager configManager)
@@ -97,6 +123,9 @@ public class ArceuusCCPlugin extends Plugin
 	protected void startUp()
 	{
 		log.info("Arceuus CC plugin started");
+
+		// Load persisted seen state
+		loadSeenState();
 
 		try
 		{
@@ -126,6 +155,10 @@ public class ArceuusCCPlugin extends Plugin
 
 			httpClient = new HttpEventClient(API_URL, this, okHttpClient, gson, executor);
 			httpClient.start();
+
+			// Fetch newsletters on startup
+			httpClient.requestLatestNewsletter();
+			httpClient.requestNewsletters(10);
 		}
 		catch (Exception e)
 		{
@@ -155,6 +188,14 @@ public class ArceuusCCPlugin extends Plugin
 			playerName = client.getLocalPlayer() != null ? client.getLocalPlayer().getName() : null;
 			log.debug("Player logged in: {}", playerName);
 			checkClanMembership();
+
+			// Send login notifications for unseen events/newsletters
+			if (!loginNotificationSent && config.showNotifications() && config.notifyUnreadOnLogin())
+			{
+				loginNotificationSent = true;
+				sendLoginNotifications();
+			}
+
 			SwingUtilities.invokeLater(() ->
 			{
 				panel.updatePlayerInfo();
@@ -165,11 +206,51 @@ public class ArceuusCCPlugin extends Plugin
 		{
 			playerName = null;
 			inClan = false;
+			loginNotificationSent = false; // Reset so we notify again on next login
 			SwingUtilities.invokeLater(() ->
 			{
 				panel.updatePlayerInfo();
 				panel.updateEvents();
 			});
+		}
+	}
+
+	private void sendLoginNotifications()
+	{
+		// Notify for unseen events
+		if (config.notifyNewEvent())
+		{
+			int unseenCount = 0;
+			String firstUnseenTitle = null;
+			for (Event event : events)
+			{
+				if ("UPCOMING".equals(event.getStatus()) && !seenEventIds.contains(event.getEventId()))
+				{
+					if (firstUnseenTitle == null)
+					{
+						firstUnseenTitle = event.getTitle();
+					}
+					unseenCount++;
+				}
+			}
+			if (unseenCount == 1)
+			{
+				notifier.notify("Arceuus CC - New Event: " + firstUnseenTitle);
+			}
+			else if (unseenCount > 1)
+			{
+				notifier.notify("Arceuus CC - " + unseenCount + " new events available!");
+			}
+		}
+
+		// Notify for unread newsletter
+		if (config.notifyNewNewsletter() && latestNewsletter != null)
+		{
+			boolean isUnread = latestNewsletter.getId() > lastSeenNewsletterId;
+			if (isUnread)
+			{
+				notifier.notify("Arceuus CC - New Newsletter: " + latestNewsletter.getTitle());
+			}
 		}
 	}
 
@@ -194,13 +275,18 @@ public class ArceuusCCPlugin extends Plugin
 			SwingUtilities.invokeLater(() -> panel.updatePlayerInfo());
 		}
 
-		if (!inClan)
+		// Always check clan membership status
+		boolean wasInClan = inClan;
+		checkClanMembership();
+
+		// If clan status changed, update the UI
+		if (inClan != wasInClan)
 		{
-			checkClanMembership();
-			if (inClan)
-			{
-				SwingUtilities.invokeLater(() -> panel.updatePlayerInfo());
-			}
+			SwingUtilities.invokeLater(() -> {
+				panel.updatePlayerInfo();
+				panel.updateEvents();
+				panel.updateNewsletters();
+			});
 		}
 	}
 
@@ -242,7 +328,8 @@ public class ArceuusCCPlugin extends Plugin
 
 	public void onEventsReceived(List<Event> newEvents)
 	{
-		if (config.showNotifications() && config.notifyNewEvent() && !events.isEmpty())
+		// Notify for truly new events (not seen before in this session) - after initial load
+		if (initialEventsLoaded && config.showNotifications() && config.notifyNewEvent())
 		{
 			for (Event newEvent : newEvents)
 			{
@@ -254,6 +341,7 @@ public class ArceuusCCPlugin extends Plugin
 				}
 			}
 		}
+		initialEventsLoaded = true;
 
 		if (config.showNotifications())
 		{
@@ -373,5 +461,235 @@ public class ArceuusCCPlugin extends Plugin
 			}
 		}
 		return false;
+	}
+
+	// ==================== NEWSLETTER METHODS ====================
+
+	private boolean initialNewsletterLoaded = false;
+
+	public void onNewsletterReceived(Newsletter newsletter)
+	{
+		if (newsletter == null)
+		{
+			return;
+		}
+
+		// Check if this is a new newsletter compared to what we last knew about
+		boolean isNewSinceLastPoll = newsletter.getId() > lastKnownNewsletterId;
+
+		// After initial load, notify for newly published newsletters during polling
+		if (initialNewsletterLoaded && isNewSinceLastPoll && config.showNotifications() && config.notifyNewNewsletter())
+		{
+			log.info("New newsletter detected: {} (id={}), notifying user", newsletter.getTitle(), newsletter.getId());
+			notifier.notify("Arceuus CC - New Newsletter: " + newsletter.getTitle());
+		}
+
+		// Update tracking
+		if (newsletter.getId() > lastKnownNewsletterId)
+		{
+			lastKnownNewsletterId = newsletter.getId();
+		}
+		initialNewsletterLoaded = true;
+
+		this.latestNewsletter = newsletter;
+		SwingUtilities.invokeLater(() -> panel.updateNewsletters());
+	}
+
+	public void onNewslettersReceived(List<Newsletter> newNewsletters)
+	{
+		this.newsletters = newNewsletters;
+		if (!newNewsletters.isEmpty())
+		{
+			Newsletter latest = newNewsletters.get(0);
+
+			// Check if this is a new newsletter compared to what we last knew about
+			boolean isNewSinceLastPoll = latest.getId() > lastKnownNewsletterId;
+
+			// After initial load, notify for newly published newsletters during polling
+			if (initialNewsletterLoaded && isNewSinceLastPoll && config.showNotifications() && config.notifyNewNewsletter())
+			{
+				log.info("New newsletter detected from list: {} (id={}), notifying user", latest.getTitle(), latest.getId());
+				notifier.notify("Arceuus CC - New Newsletter: " + latest.getTitle());
+			}
+
+			// Update tracking
+			if (latest.getId() > lastKnownNewsletterId)
+			{
+				lastKnownNewsletterId = latest.getId();
+			}
+
+			this.latestNewsletter = latest;
+		}
+		initialNewsletterLoaded = true;
+		SwingUtilities.invokeLater(() -> panel.updateNewsletters());
+	}
+
+	public void refreshNewsletters()
+	{
+		if (httpClient != null)
+		{
+			httpClient.requestNewsletters(10);
+		}
+	}
+
+	public void markNewsletterAsSeen(Newsletter newsletter)
+	{
+		if (newsletter != null && newsletter.getId() > lastSeenNewsletterId)
+		{
+			lastSeenNewsletterId = newsletter.getId();
+			saveLastSeenNewsletterId();
+		}
+	}
+
+	public void markAllNewslettersAsRead()
+	{
+		if (latestNewsletter != null && latestNewsletter.getId() > lastSeenNewsletterId)
+		{
+			lastSeenNewsletterId = latestNewsletter.getId();
+			saveLastSeenNewsletterId();
+		}
+		SwingUtilities.invokeLater(() -> panel.updateNewsletters());
+	}
+
+	public boolean hasUnreadNewsletter()
+	{
+		if (latestNewsletter == null)
+		{
+			return false;
+		}
+		return latestNewsletter.getId() > lastSeenNewsletterId;
+	}
+
+	public String getNewsletterImageUrl(int newsletterId)
+	{
+		if (httpClient != null)
+		{
+			return httpClient.getNewsletterImageUrl(newsletterId);
+		}
+		return null;
+	}
+
+	// ==================== EVENT READ STATUS METHODS ====================
+
+	public void markEventAsSeen(String eventId)
+	{
+		seenEventIds.add(eventId);
+		saveSeenEventIds();
+		SwingUtilities.invokeLater(() -> panel.updateEvents());
+	}
+
+	public void markAllEventsAsRead()
+	{
+		for (Event event : events)
+		{
+			seenEventIds.add(event.getEventId());
+		}
+		saveSeenEventIds();
+		SwingUtilities.invokeLater(() -> panel.updateEvents());
+	}
+
+	public boolean isEventSeen(String eventId)
+	{
+		return seenEventIds.contains(eventId);
+	}
+
+	public boolean hasUnseenEvents()
+	{
+		for (Event event : events)
+		{
+			if ("UPCOMING".equals(event.getStatus()) && !seenEventIds.contains(event.getEventId()))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// ==================== SETTINGS METHODS ====================
+
+	public void onSettingsReceived(PluginSettings settings)
+	{
+		this.pluginSettings = settings;
+		log.info("Plugin settings updated: polling={}s, requireClan={}, clanName={}",
+			settings.getEventPollingInterval(),
+			settings.isRequireClanMembership(),
+			settings.getClanName());
+
+		// Update UI to reflect any settings changes
+		SwingUtilities.invokeLater(() -> {
+			panel.updatePlayerInfo();
+			panel.updateEvents();
+		});
+	}
+
+	/**
+	 * Check if the user should have access to plugin features.
+	 * Returns true if clan membership is not required OR user is in the correct clan.
+	 */
+	public boolean hasPluginAccess()
+	{
+		if (!pluginSettings.isRequireClanMembership())
+		{
+			return true;
+		}
+		return inClan;
+	}
+
+	/**
+	 * Get the message to display when user doesn't have plugin access.
+	 */
+	public String getNoAccessMessage()
+	{
+		return "To use the Arceuus CC Plugin please join the \"" +
+			pluginSettings.getClanName() +
+			"\" Clan Chat. You can also join us on Discord: https://discord.gg/Ka3bVn6nkW";
+	}
+
+	// ==================== PERSISTENCE METHODS ====================
+
+	private void loadSeenState()
+	{
+		// Load seen event IDs
+		String seenEventsStr = configManager.getConfiguration(CONFIG_GROUP, SEEN_EVENTS_KEY);
+		if (seenEventsStr != null && !seenEventsStr.isEmpty())
+		{
+			String[] ids = seenEventsStr.split(",");
+			for (String id : ids)
+			{
+				if (!id.isEmpty())
+				{
+					seenEventIds.add(id);
+				}
+			}
+			log.debug("Loaded {} seen event IDs from config", seenEventIds.size());
+		}
+
+		// Load last seen newsletter ID
+		String lastNewsletterStr = configManager.getConfiguration(CONFIG_GROUP, LAST_SEEN_NEWSLETTER_KEY);
+		if (lastNewsletterStr != null && !lastNewsletterStr.isEmpty())
+		{
+			try
+			{
+				lastSeenNewsletterId = Integer.parseInt(lastNewsletterStr);
+				log.debug("Loaded last seen newsletter ID: {}", lastSeenNewsletterId);
+			}
+			catch (NumberFormatException e)
+			{
+				log.warn("Invalid last seen newsletter ID in config: {}", lastNewsletterStr);
+			}
+		}
+	}
+
+	private void saveSeenEventIds()
+	{
+		String seenEventsStr = String.join(",", seenEventIds);
+		configManager.setConfiguration(CONFIG_GROUP, SEEN_EVENTS_KEY, seenEventsStr);
+		log.debug("Saved {} seen event IDs to config", seenEventIds.size());
+	}
+
+	private void saveLastSeenNewsletterId()
+	{
+		configManager.setConfiguration(CONFIG_GROUP, LAST_SEEN_NEWSLETTER_KEY, String.valueOf(lastSeenNewsletterId));
+		log.debug("Saved last seen newsletter ID: {}", lastSeenNewsletterId);
 	}
 }

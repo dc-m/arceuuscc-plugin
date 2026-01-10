@@ -26,6 +26,8 @@ public class ArceuusCCOverlay extends Overlay
 	private static final Color ENDING_SOON_RED = new Color(255, 100, 100);
 	private static final Color STARTING_SOON_YELLOW = new Color(255, 220, 0);
 	private static final Color UPCOMING_BLUE = new Color(114, 137, 218);
+	private static final Color NEWSLETTER_GOLD = new Color(218, 165, 32);
+	private static final Color NO_ACCESS_ORANGE = new Color(255, 140, 0);
 
 	private final ArceuusCCPlugin plugin;
 	private final ArceuusCCConfig config;
@@ -50,30 +52,34 @@ public class ArceuusCCOverlay extends Overlay
 			return null;
 		}
 
-		List<Event> events = plugin.getEvents();
-		if (events == null || events.isEmpty())
+		// Check if user has plugin access (is in clan if required)
+		if (!plugin.hasPluginAccess())
 		{
-			return null;
+			return renderNoAccessMessage(graphics);
 		}
 
+		List<Event> events = plugin.getEvents();
 		LocalDateTime now = LocalDateTime.now();
 
 		Event activeEvent = null;
 		Event upcomingEvent = null;
 
-		for (Event event : events)
+		if (events != null)
 		{
-			if ("ACTIVE".equals(event.getStatus()))
+			for (Event event : events)
 			{
-				activeEvent = event;
-			}
-			else if ("UPCOMING".equals(event.getStatus()) && upcomingEvent == null)
-			{
-				LocalDateTime startTime = parseDateTime(event.getStartTime());
-				long minutesUntil = ChronoUnit.MINUTES.between(now, startTime);
-				if (minutesUntil <= 180 && minutesUntil >= 0)
+				if ("ACTIVE".equals(event.getStatus()))
 				{
-					upcomingEvent = event;
+					activeEvent = event;
+				}
+				else if ("UPCOMING".equals(event.getStatus()) && upcomingEvent == null)
+				{
+					LocalDateTime startTime = parseDateTime(event.getStartTime());
+					long minutesUntil = ChronoUnit.MINUTES.between(now, startTime);
+					if (minutesUntil <= 180 && minutesUntil >= 0)
+					{
+						upcomingEvent = event;
+					}
 				}
 			}
 		}
@@ -108,7 +114,13 @@ public class ArceuusCCOverlay extends Overlay
 			}
 		}
 
-		if (!showActive && !showUpcoming)
+		// Check if we should show newsletter notification
+		boolean showNewsletter = config.showNewsletterOverlay()
+			&& plugin.getPluginSettings().isShowNewsletterNotifications()
+			&& plugin.hasUnreadNewsletter();
+
+		// If nothing to show, return null
+		if (!showActive && !showUpcoming && !showNewsletter)
 		{
 			return null;
 		}
@@ -134,7 +146,49 @@ public class ArceuusCCOverlay extends Overlay
 			renderUpcomingEvent(upcomingEvent, now, isStartingSoon);
 		}
 
+		// Show new newsletter notification
+		if (showNewsletter)
+		{
+			if (showActive || showUpcoming)
+			{
+				panelComponent.getChildren().add(LineComponent.builder().build());
+			}
+			renderNewsletterNotification();
+		}
+
 		return panelComponent.render(graphics);
+	}
+
+	private void renderNewsletterNotification()
+	{
+		var newsletter = plugin.getLatestNewsletter();
+		if (newsletter == null)
+		{
+			return;
+		}
+
+		panelComponent.getChildren().add(TitleComponent.builder()
+			.text("NEW NEWSLETTER")
+			.color(NEWSLETTER_GOLD)
+			.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+			.left(newsletter.getTitle())
+			.leftColor(Color.WHITE)
+			.build());
+
+		if (newsletter.getMonthYear() != null)
+		{
+			panelComponent.getChildren().add(LineComponent.builder()
+				.left(newsletter.getMonthYear())
+				.leftColor(Color.GRAY)
+				.build());
+		}
+
+		panelComponent.getChildren().add(LineComponent.builder()
+			.left("Check panel to read")
+			.leftColor(NEWSLETTER_GOLD)
+			.build());
 	}
 
 	private void renderActiveEvent(Event event, LocalDateTime now, boolean isEndingSoon)
@@ -259,5 +313,47 @@ public class ArceuusCCOverlay extends Overlay
 		long days = hours / 24;
 		hours = hours % 24;
 		return days + "d " + hours + "h";
+	}
+
+	private Dimension renderNoAccessMessage(Graphics2D graphics)
+	{
+		panelComponent.getChildren().clear();
+
+		panelComponent.getChildren().add(TitleComponent.builder()
+			.text("ARCEUUS CC")
+			.color(ARCEUUS_PURPLE)
+			.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+			.left("Join the clan to use")
+			.leftColor(NO_ACCESS_ORANGE)
+			.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+			.left("this plugin")
+			.leftColor(NO_ACCESS_ORANGE)
+			.build());
+
+		panelComponent.getChildren().add(LineComponent.builder().build());
+
+		String clanName = plugin.getPluginSettings().getClanName();
+		panelComponent.getChildren().add(LineComponent.builder()
+			.left("Clan Chat:")
+			.leftColor(Color.GRAY)
+			.right(clanName)
+			.rightColor(Color.WHITE)
+			.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+			.left("Discord:")
+			.leftColor(Color.GRAY)
+			.build());
+
+		panelComponent.getChildren().add(LineComponent.builder()
+			.left("discord.gg/Ka3bVn6nkW")
+			.leftColor(UPCOMING_BLUE)
+			.build());
+
+		return panelComponent.render(graphics);
 	}
 }
