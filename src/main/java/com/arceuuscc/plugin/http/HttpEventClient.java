@@ -292,6 +292,12 @@ public class HttpEventClient
 						plugin.onNewsletterReceived(newsletter);
 						log.debug("Fetched newsletter: {}", newsletter.getTitle());
 					}
+					else
+					{
+						// No newsletter exists - clear the latest
+						plugin.onNewsletterReceived(null);
+						log.debug("No newsletter available");
+					}
 				}
 				catch (Exception e)
 				{

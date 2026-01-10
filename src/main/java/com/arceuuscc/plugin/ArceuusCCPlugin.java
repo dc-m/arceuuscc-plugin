@@ -471,8 +471,12 @@ public class ArceuusCCPlugin extends Plugin
 
 	public void onNewsletterReceived(Newsletter newsletter)
 	{
+		// If newsletter is null, clear latest and update UI
 		if (newsletter == null)
 		{
+			this.latestNewsletter = null;
+			initialNewsletterLoaded = true;
+			SwingUtilities.invokeLater(() -> panel.updateNewsletters());
 			return;
 		}
 
@@ -500,7 +504,12 @@ public class ArceuusCCPlugin extends Plugin
 	public void onNewslettersReceived(List<Newsletter> newNewsletters)
 	{
 		this.newsletters = newNewsletters;
-		if (!newNewsletters.isEmpty())
+		if (newNewsletters.isEmpty())
+		{
+			// Clear latest newsletter if no newsletters exist
+			this.latestNewsletter = null;
+		}
+		else
 		{
 			Newsletter latest = newNewsletters.get(0);
 
