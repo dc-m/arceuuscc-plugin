@@ -138,7 +138,7 @@ public class NotificationService
 
 		if (initialNewsletterLoaded && isNewSinceLastPoll && config.showNotifications() && config.notifyNewNewsletter())
 		{
-			log.info("New newsletter detected: {} (id={}), notifying user", newsletter.getTitle(), newsletter.getId());
+			log.debug("New newsletter detected: {} (id={}), notifying user", newsletter.getTitle(), newsletter.getId());
 			notifier.notify(NOTIFICATION_PREFIX + "New Newsletter: " + newsletter.getTitle());
 		}
 

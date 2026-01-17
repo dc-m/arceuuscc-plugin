@@ -59,7 +59,7 @@ public class HttpEventClient
 
 		// Poll at configured interval (default 30 seconds, 0 = disabled)
 		startPolling();
-		log.info("HTTP Event Client started, polling {}", apiUrl);
+		log.debug("HTTP Event Client started, polling {}", apiUrl);
 	}
 
 	private void startPolling()
@@ -74,7 +74,7 @@ public class HttpEventClient
 		// If polling interval is 0, polling is disabled
 		if (pollingInterval <= 0)
 		{
-			log.info("Event polling disabled (interval = 0)");
+			log.debug("Event polling disabled (interval = 0)");
 			return;
 		}
 
@@ -83,7 +83,7 @@ public class HttpEventClient
 			requestLatestNewsletter();
 			requestNewsletters(10);
 		}, pollingInterval, pollingInterval, TimeUnit.SECONDS);
-		log.info("Event and newsletter polling started with interval: {} seconds", pollingInterval);
+		log.debug("Event and newsletter polling started with interval: {} seconds", pollingInterval);
 	}
 
 	public void updatePollingInterval(int newInterval)
@@ -102,7 +102,7 @@ public class HttpEventClient
 			pollingTask.cancel(false);
 			pollingTask = null;
 		}
-		log.info("HTTP Event Client stopped");
+		log.debug("HTTP Event Client stopped");
 	}
 
 	public boolean isConnected()
@@ -195,7 +195,7 @@ public class HttpEventClient
 				{
 					if (response.isSuccessful())
 					{
-						log.info("Successfully signed up for event {}", eventId);
+						log.debug("Successfully signed up for event {}", eventId);
 						// Refresh events to get updated signups
 						requestEvents();
 					}
@@ -236,7 +236,7 @@ public class HttpEventClient
 				{
 					if (response.isSuccessful())
 					{
-						log.info("Successfully unsigned from event {}", eventId);
+						log.debug("Successfully unsigned from event {}", eventId);
 						// Refresh events to get updated signups
 						requestEvents();
 					}
@@ -423,7 +423,7 @@ public class HttpEventClient
 						}
 
 						plugin.onSettingsReceived(settings);
-						log.info("Loaded plugin settings: polling={}s, requireClan={}, clanName={}, showNewsletterNotifications={}",
+						log.debug("Loaded plugin settings: polling={}s, requireClan={}, clanName={}, showNewsletterNotifications={}",
 							settings.getEventPollingInterval(),
 							settings.isRequireClanMembership(),
 							settings.getClanName(),

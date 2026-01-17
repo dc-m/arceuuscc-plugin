@@ -122,7 +122,7 @@ public class ArceuusCCPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
-		log.info("Arceuus CC plugin started");
+		log.debug("Arceuus CC plugin started");
 
 		// Load persisted seen state
 		loadSeenState();
@@ -169,7 +169,7 @@ public class ArceuusCCPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
-		log.info("Arceuus CC plugin stopped");
+		log.debug("Arceuus CC plugin stopped");
 
 		clientToolbar.removeNavigation(navButton);
 		overlayManager.remove(overlay);
@@ -273,7 +273,7 @@ public class ArceuusCCPlugin extends Plugin
 		if (playerName == null && client.getLocalPlayer() != null)
 		{
 			playerName = client.getLocalPlayer().getName();
-			log.info("Player name detected: {}", playerName);
+			log.debug("Player name detected: {}", playerName);
 			SwingUtilities.invokeLater(() -> panel.updatePlayerInfo());
 		}
 
@@ -306,7 +306,7 @@ public class ArceuusCCPlugin extends Plugin
 				inClan = true;
 				if (!wasInClan)
 				{
-					log.info("Joined Arceuus clan");
+					log.debug("Joined Arceuus clan");
 				}
 			}
 			else
@@ -314,7 +314,7 @@ public class ArceuusCCPlugin extends Plugin
 				inClan = false;
 				if (wasInClan)
 				{
-					log.info("Left Arceuus clan (now in: {})", clanName);
+					log.debug("Left Arceuus clan (now in: {})", clanName);
 				}
 			}
 		}
@@ -322,7 +322,7 @@ public class ArceuusCCPlugin extends Plugin
 		{
 			if (inClan)
 			{
-				log.info("Left clan");
+				log.debug("Left clan");
 			}
 			inClan = false;
 		}
@@ -397,7 +397,7 @@ public class ArceuusCCPlugin extends Plugin
 
 	public void signUp(String eventId)
 	{
-		log.info("signUp called for eventId: {}, playerName: {}, inClan: {}", eventId, playerName, inClan);
+		log.debug("signUp called for eventId: {}, playerName: {}, inClan: {}", eventId, playerName, inClan);
 
 		if (playerName == null)
 		{
@@ -411,7 +411,7 @@ public class ArceuusCCPlugin extends Plugin
 		}
 		if (httpClient != null && httpClient.isConnected())
 		{
-			log.info("Sending signup request via HTTP");
+			log.debug("Sending signup request via HTTP");
 			httpClient.sendSignup(eventId, playerName);
 		}
 		else
@@ -422,7 +422,7 @@ public class ArceuusCCPlugin extends Plugin
 
 	public void unSignUp(String eventId)
 	{
-		log.info("unSignUp called for eventId: {}, playerName: {}", eventId, playerName);
+		log.debug("unSignUp called for eventId: {}, playerName: {}", eventId, playerName);
 
 		if (playerName == null)
 		{
@@ -430,7 +430,7 @@ public class ArceuusCCPlugin extends Plugin
 		}
 		if (httpClient != null && httpClient.isConnected())
 		{
-			log.info("Sending unsignup request via HTTP");
+			log.debug("Sending unsignup request via HTTP");
 			httpClient.sendUnsignup(eventId, playerName);
 		}
 		else
@@ -486,7 +486,7 @@ public class ArceuusCCPlugin extends Plugin
 		// After initial load, notify for newly published newsletters during polling
 		if (initialNewsletterLoaded && isNewSinceLastPoll && config.showNotifications() && config.notifyNewNewsletter())
 		{
-			log.info("New newsletter detected: {} (id={}), notifying user", newsletter.getTitle(), newsletter.getId());
+			log.debug("New newsletter detected: {} (id={}), notifying user", newsletter.getTitle(), newsletter.getId());
 			notifier.notify("Arceuus CC - New Newsletter: " + newsletter.getTitle());
 		}
 
@@ -519,7 +519,7 @@ public class ArceuusCCPlugin extends Plugin
 			// After initial load, notify for newly published newsletters during polling
 			if (initialNewsletterLoaded && isNewSinceLastPoll && config.showNotifications() && config.notifyNewNewsletter())
 			{
-				log.info("New newsletter detected from list: {} (id={}), notifying user", latest.getTitle(), latest.getId());
+				log.debug("New newsletter detected from list: {} (id={}), notifying user", latest.getTitle(), latest.getId());
 				notifier.notify("Arceuus CC - New Newsletter: " + latest.getTitle());
 			}
 
@@ -627,7 +627,7 @@ public class ArceuusCCPlugin extends Plugin
 	public void onSettingsReceived(PluginSettings settings)
 	{
 		this.pluginSettings = settings;
-		log.info("Plugin settings updated: polling={}s, requireClan={}, clanName={}",
+		log.debug("Plugin settings updated: polling={}s, requireClan={}, clanName={}",
 			settings.getEventPollingInterval(),
 			settings.isRequireClanMembership(),
 			settings.getClanName());
