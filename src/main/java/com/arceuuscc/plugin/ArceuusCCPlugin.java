@@ -1,6 +1,7 @@
 package com.arceuuscc.plugin;
 
 import com.arceuuscc.plugin.http.HttpEventClient;
+import com.arceuuscc.plugin.models.AuthorizationState;
 import com.arceuuscc.plugin.models.Event;
 import com.arceuuscc.plugin.models.Newsletter;
 import com.arceuuscc.plugin.models.PluginSettings;
@@ -35,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 
 @Slf4j
@@ -45,7 +47,6 @@ import java.util.concurrent.ScheduledExecutorService;
 )
 public class ArceuusCCPlugin extends Plugin
 {
-	private static final String API_URL = "https://pixelperfectdigital.co.uk/arceuus/events.php";
 
 	@Inject
 	private Client client;
@@ -77,6 +78,8 @@ public class ArceuusCCPlugin extends Plugin
 	private static final String CONFIG_GROUP = "arceuuscc";
 	private static final String SEEN_EVENTS_KEY = "seenEventIds";
 	private static final String LAST_SEEN_NEWSLETTER_KEY = "lastSeenNewsletterId";
+	private static final String AUTH_TOKEN_KEY = "authToken";
+	private static final String AUTH_STATUS_KEY = "authStatus";
 
 	@Getter
 	private HttpEventClient httpClient;
@@ -113,6 +116,14 @@ public class ArceuusCCPlugin extends Plugin
 	@Getter
 	private PluginSettings pluginSettings = PluginSettings.builder().build();
 
+	@Getter
+	private String authToken = null;
+
+	@Getter
+	private AuthorizationState authState = AuthorizationState.UNKNOWN;
+
+	private String authReason = null;
+
 	@Provides
 	ArceuusCCConfig provideConfig(ConfigManager configManager)
 	{
@@ -126,6 +137,9 @@ public class ArceuusCCPlugin extends Plugin
 
 		// Load persisted seen state
 		loadSeenState();
+
+		// Load authorization token
+		loadAuthToken();
 
 		try
 		{
@@ -153,12 +167,28 @@ public class ArceuusCCPlugin extends Plugin
 
 			clientToolbar.addNavigation(navButton);
 
-			httpClient = new HttpEventClient(API_URL, this, okHttpClient, gson, executor);
+			httpClient = new HttpEventClient(ApiConfig.getApiUrl(), this, okHttpClient, gson, executor);
+			log.debug("Using API: {}", ApiConfig.getApiUrl());
 			httpClient.start();
 
 			// Fetch newsletters on startup
 			httpClient.requestLatestNewsletter();
 			httpClient.requestNewsletters(10);
+
+			// Check if player is already logged in (plugin loaded mid-session)
+			if (client.getGameState() == GameState.LOGGED_IN && client.getLocalPlayer() != null)
+			{
+				playerName = client.getLocalPlayer().getName();
+				checkClanMembership();
+
+				// Verify auth status with API immediately
+				if (authToken != null)
+				{
+					checkAuthorizationStatus();
+				}
+
+				SwingUtilities.invokeLater(() -> panel.updatePlayerInfo());
+			}
 		}
 		catch (Exception e)
 		{
@@ -188,6 +218,12 @@ public class ArceuusCCPlugin extends Plugin
 			playerName = client.getLocalPlayer() != null ? client.getLocalPlayer().getName() : null;
 			log.debug("Player logged in: {}", playerName);
 			checkClanMembership();
+
+			// Check authorization status with API on login (in case it changed while offline)
+			if (authToken != null && httpClient != null)
+			{
+				checkAuthorizationStatus();
+			}
 
 			// Send login notifications for unseen events/newsletters
 			if (!loginNotificationSent && config.showNotifications() && config.notifyUnreadOnLogin())
@@ -641,10 +677,17 @@ public class ArceuusCCPlugin extends Plugin
 
 	/**
 	 * Check if the user should have access to plugin features.
-	 * Returns true if clan membership is not required OR user is in the correct clan.
+	 * Requires ACCEPTED authorization status AND (clan membership not required OR user is in the correct clan).
 	 */
 	public boolean hasPluginAccess()
 	{
+		// Must have accepted authorization
+		if (!authState.hasAccess())
+		{
+			return false;
+		}
+
+		// Check clan membership if required
 		if (!pluginSettings.isRequireClanMembership())
 		{
 			return true;
@@ -708,5 +751,119 @@ public class ArceuusCCPlugin extends Plugin
 	{
 		configManager.setConfiguration(CONFIG_GROUP, LAST_SEEN_NEWSLETTER_KEY, String.valueOf(lastSeenNewsletterId));
 		log.debug("Saved last seen newsletter ID: {}", lastSeenNewsletterId);
+	}
+
+	// ==================== AUTHORIZATION METHODS ====================
+
+	private void loadAuthToken()
+	{
+		authToken = configManager.getConfiguration(CONFIG_GROUP, AUTH_TOKEN_KEY);
+
+		if (authToken == null || authToken.isEmpty())
+		{
+			authState = AuthorizationState.NO_TOKEN;
+			log.debug("No auth token found");
+		}
+		else
+		{
+			// Always set to UNKNOWN when we have a token - requires API verification
+			// This ensures revoked users can't see content before the check completes
+			authState = AuthorizationState.UNKNOWN;
+			log.debug("Loaded auth token, needs API verification");
+		}
+	}
+
+	private void saveAuthToken()
+	{
+		if (authToken != null)
+		{
+			configManager.setConfiguration(CONFIG_GROUP, AUTH_TOKEN_KEY, authToken);
+		}
+		configManager.setConfiguration(CONFIG_GROUP, AUTH_STATUS_KEY, authState.name());
+		log.debug("Saved auth token and status: {}", authState);
+	}
+
+	/**
+	 * Request access to the plugin. Generates a new token and submits it for approval.
+	 */
+	public void requestAccess()
+	{
+		if (playerName == null)
+		{
+			log.warn("Cannot request access - player name not known");
+			return;
+		}
+
+		// Generate new UUID token
+		authToken = UUID.randomUUID().toString();
+		authState = AuthorizationState.PENDING;
+		saveAuthToken();
+
+		log.debug("Requesting access for {}", playerName);
+
+		// Submit to API
+		if (httpClient != null)
+		{
+			httpClient.submitAuthorizationRequest(playerName, authToken);
+		}
+
+		// Update UI
+		SwingUtilities.invokeLater(() -> panel.updateAuthorizationState());
+	}
+
+	/**
+	 * Called when authorization status is received from the API.
+	 */
+	public void onAuthorizationStatusReceived(AuthorizationState newState, String reason)
+	{
+		AuthorizationState oldState = authState;
+		authState = newState;
+		authReason = reason;
+
+		// If token was not found in database, clear it so user can request a new one
+		if (newState == AuthorizationState.NO_TOKEN)
+		{
+			authToken = null;
+			configManager.unsetConfiguration(CONFIG_GROUP, AUTH_TOKEN_KEY);
+			log.debug("Cleared auth token - not found in database");
+		}
+
+		saveAuthToken();
+
+		log.debug("Authorization status: {} -> {}", oldState, newState);
+
+		// If transitioning to ACCEPTED, immediately fetch events and newsletters
+		if (newState == AuthorizationState.ACCEPTED && oldState != AuthorizationState.ACCEPTED)
+		{
+			log.debug("Authorization accepted - fetching events and newsletters immediately");
+			if (httpClient != null)
+			{
+				httpClient.requestEvents();
+				httpClient.requestLatestNewsletter();
+				httpClient.requestNewsletters(10);
+			}
+		}
+
+		// Update UI
+		SwingUtilities.invokeLater(() -> panel.updateAuthorizationState());
+	}
+
+	/**
+	 * Get the reason for rejection/revocation if applicable.
+	 */
+	public String getAuthReason()
+	{
+		return authReason;
+	}
+
+	/**
+	 * Check authorization status with the API.
+	 */
+	public void checkAuthorizationStatus()
+	{
+		if (authToken != null && playerName != null && httpClient != null)
+		{
+			httpClient.checkAuthorizationStatus(playerName, authToken);
+		}
 	}
 }

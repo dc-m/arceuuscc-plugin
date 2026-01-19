@@ -1,6 +1,7 @@
 package com.arceuuscc.plugin.http;
 
 import com.arceuuscc.plugin.ArceuusCCPlugin;
+import com.arceuuscc.plugin.models.AuthorizationState;
 import com.arceuuscc.plugin.models.Event;
 import com.arceuuscc.plugin.models.Newsletter;
 import com.arceuuscc.plugin.models.PluginSettings;
@@ -23,7 +24,9 @@ public class HttpEventClient
 {
 	private static final MediaType JSON_MEDIA_TYPE = MediaType.get("application/json; charset=utf-8");
 	private static final String API_KEY = "arceuus-cc-runelite-2026";
+	private static final String AUTH_TOKEN_HEADER = "X-Auth-Token";
 	private static final int DEFAULT_POLLING_INTERVAL = 30;
+	private static final int AUTH_POLLING_INTERVAL = 30;
 
 	private final String apiUrl;
 	private final ArceuusCCPlugin plugin;
@@ -32,6 +35,7 @@ public class HttpEventClient
 	private final ScheduledExecutorService executor;
 
 	private ScheduledFuture<?> pollingTask;
+	private ScheduledFuture<?> authPollingTask;
 	private boolean connected = false;
 	private int pollingInterval = DEFAULT_POLLING_INTERVAL;
 
@@ -56,6 +60,9 @@ public class HttpEventClient
 
 		// Initial fetch
 		requestEvents();
+
+		// Check authorization status immediately (don't wait for polling interval)
+		plugin.checkAuthorizationStatus();
 
 		// Poll at configured interval (default 30 seconds, 0 = disabled)
 		startPolling();
@@ -82,6 +89,7 @@ public class HttpEventClient
 			requestEvents();
 			requestLatestNewsletter();
 			requestNewsletters(10);
+			plugin.checkAuthorizationStatus();
 		}, pollingInterval, pollingInterval, TimeUnit.SECONDS);
 		log.debug("Event and newsletter polling started with interval: {} seconds", pollingInterval);
 	}
@@ -102,6 +110,7 @@ public class HttpEventClient
 			pollingTask.cancel(false);
 			pollingTask = null;
 		}
+		stopAuthPolling();
 		log.debug("HTTP Event Client stopped");
 	}
 
@@ -112,10 +121,14 @@ public class HttpEventClient
 
 	public void requestEvents()
 	{
-		Request request = new Request.Builder()
+		Request.Builder builder = new Request.Builder()
 			.url(apiUrl)
-			.get()
-			.build();
+			.get();
+
+		// Add auth headers for authorization
+		addAuthHeaders(builder);
+
+		Request request = builder.build();
 
 		httpClient.newCall(request).enqueue(new Callback()
 		{
@@ -174,9 +187,9 @@ public class HttpEventClient
 		payload.addProperty("eventId", eventId);
 		payload.addProperty("osrsName", osrsName);
 
-		Request request = new Request.Builder()
+		Request request = addAuthHeader(new Request.Builder()
 			.url(apiUrl + "?action=signup")
-			.header("X-API-Key", API_KEY)
+			.header("X-API-Key", API_KEY))
 			.post(RequestBody.create(JSON_MEDIA_TYPE, gson.toJson(payload)))
 			.build();
 
@@ -199,6 +212,12 @@ public class HttpEventClient
 						// Refresh events to get updated signups
 						requestEvents();
 					}
+					else if (response.code() == 401)
+					{
+						String errorBody = body != null ? body.string() : "{}";
+						log.warn("Signup unauthorized: {}", errorBody);
+						handleUnauthorizedResponse(errorBody);
+					}
 					else
 					{
 						String errorBody = body != null ? body.string() : "Unknown error";
@@ -215,9 +234,9 @@ public class HttpEventClient
 		payload.addProperty("eventId", eventId);
 		payload.addProperty("osrsName", osrsName);
 
-		Request request = new Request.Builder()
+		Request request = addAuthHeader(new Request.Builder()
 			.url(apiUrl + "?action=unsignup")
-			.header("X-API-Key", API_KEY)
+			.header("X-API-Key", API_KEY))
 			.post(RequestBody.create(JSON_MEDIA_TYPE, gson.toJson(payload)))
 			.build();
 
@@ -240,6 +259,12 @@ public class HttpEventClient
 						// Refresh events to get updated signups
 						requestEvents();
 					}
+					else if (response.code() == 401)
+					{
+						String errorBody = body != null ? body.string() : "{}";
+						log.warn("Unsignup unauthorized: {}", errorBody);
+						handleUnauthorizedResponse(errorBody);
+					}
 					else
 					{
 						String errorBody = body != null ? body.string() : "Unknown error";
@@ -259,10 +284,13 @@ public class HttpEventClient
 	{
 		String newsletterUrl = apiUrl.replace("events.php", "newsletters.php") + "?action=latest";
 
-		Request request = new Request.Builder()
+		Request.Builder builder = new Request.Builder()
 			.url(newsletterUrl)
-			.get()
-			.build();
+			.get();
+
+		addAuthHeaders(builder);
+
+		Request request = builder.build();
 
 		httpClient.newCall(request).enqueue(new Callback()
 		{
@@ -314,10 +342,13 @@ public class HttpEventClient
 	{
 		String newsletterUrl = apiUrl.replace("events.php", "newsletters.php") + "?limit=" + limit;
 
-		Request request = new Request.Builder()
+		Request.Builder builder = new Request.Builder()
 			.url(newsletterUrl)
-			.get()
-			.build();
+			.get();
+
+		addAuthHeaders(builder);
+
+		Request request = builder.build();
 
 		httpClient.newCall(request).enqueue(new Callback()
 		{
@@ -371,10 +402,13 @@ public class HttpEventClient
 	{
 		String settingsUrl = apiUrl.replace("events.php", "settings.php");
 
-		Request request = new Request.Builder()
+		Request.Builder builder = new Request.Builder()
 			.url(settingsUrl)
-			.get()
-			.build();
+			.get();
+
+		addAuthHeaders(builder);
+
+		Request request = builder.build();
 
 		httpClient.newCall(request).enqueue(new Callback()
 		{
@@ -436,5 +470,213 @@ public class HttpEventClient
 				}
 			}
 		});
+	}
+
+	// ==================== AUTHORIZATION METHODS ====================
+
+	/**
+	 * Add auth token header to request builder if token is available.
+	 */
+	private Request.Builder addAuthHeader(Request.Builder builder)
+	{
+		String token = plugin.getAuthToken();
+		if (token != null && !token.isEmpty())
+		{
+			builder.header(AUTH_TOKEN_HEADER, token);
+		}
+		return builder;
+	}
+
+	/**
+	 * Add auth headers (token and username) to request builder.
+	 */
+	private void addAuthHeaders(Request.Builder builder)
+	{
+		String token = plugin.getAuthToken();
+		String username = plugin.getPlayerName();
+
+		if (token != null && !token.isEmpty())
+		{
+			builder.header(AUTH_TOKEN_HEADER, token);
+		}
+		if (username != null && !username.isEmpty())
+		{
+			builder.header("X-Username", username);
+		}
+	}
+
+	/**
+	 * Submit authorization request to the API.
+	 */
+	public void submitAuthorizationRequest(String username, String token)
+	{
+		String authUrl = apiUrl.replace("events.php", "auth.php") + "?action=request";
+
+		JsonObject payload = new JsonObject();
+		payload.addProperty("username", username);
+		payload.addProperty("token", token);
+
+		Request request = new Request.Builder()
+			.url(authUrl)
+			.header("X-API-Key", API_KEY)
+			.post(RequestBody.create(JSON_MEDIA_TYPE, gson.toJson(payload)))
+			.build();
+
+		httpClient.newCall(request).enqueue(new Callback()
+		{
+			@Override
+			public void onFailure(Call call, IOException e)
+			{
+				log.error("Failed to submit authorization request", e);
+			}
+
+			@Override
+			public void onResponse(Call call, Response response) throws IOException
+			{
+				try (ResponseBody body = response.body())
+				{
+					if (response.isSuccessful())
+					{
+						log.debug("Authorization request submitted for {}", username);
+						startAuthPolling();
+					}
+					else
+					{
+						String errorBody = body != null ? body.string() : "Unknown error";
+						log.error("Authorization request failed: {}", errorBody);
+					}
+				}
+			}
+		});
+	}
+
+	/**
+	 * Check authorization status with the API.
+	 */
+	public void checkAuthorizationStatus(String username, String token)
+	{
+		String authUrl = apiUrl.replace("events.php", "auth.php") + "?action=check&username=" +
+			java.net.URLEncoder.encode(username, java.nio.charset.StandardCharsets.UTF_8) +
+			"&token=" + java.net.URLEncoder.encode(token, java.nio.charset.StandardCharsets.UTF_8);
+
+		Request request = new Request.Builder()
+			.url(authUrl)
+			.header("X-API-Key", API_KEY)
+			.get()
+			.build();
+
+		httpClient.newCall(request).enqueue(new Callback()
+		{
+			@Override
+			public void onFailure(Call call, IOException e)
+			{
+				log.error("Failed to check authorization status", e);
+			}
+
+			@Override
+			public void onResponse(Call call, Response response) throws IOException
+			{
+				try (ResponseBody body = response.body())
+				{
+					if (!response.isSuccessful() || body == null)
+					{
+						log.error("Error checking authorization status: {}", response.code());
+						return;
+					}
+
+					String json = body.string();
+					JsonObject jsonObj = new JsonParser().parse(json).getAsJsonObject();
+
+					// Check if authorization was found (API returns {"found": false} when not in DB)
+					boolean found = jsonObj.has("found") && jsonObj.get("found").getAsBoolean();
+
+					if (found && jsonObj.has("status") && !jsonObj.get("status").isJsonNull())
+					{
+						String status = jsonObj.get("status").getAsString();
+						String reason = jsonObj.has("reason") && !jsonObj.get("reason").isJsonNull()
+							? jsonObj.get("reason").getAsString()
+							: null;
+
+						AuthorizationState newState = AuthorizationState.fromApiStatus(status);
+						plugin.onAuthorizationStatusReceived(newState, reason);
+
+						log.debug("Authorization status for {}: {} (reason: {})", username, status, reason);
+
+						// Only stop polling when ACCEPTED - keep polling for PENDING/REJECTED/REVOKED
+						// so user can see when admin changes their status
+						if (newState == AuthorizationState.ACCEPTED)
+						{
+							stopAuthPolling();
+						}
+					}
+					else if (!found || jsonObj.has("error"))
+					{
+						// Token not found in database - user needs to request access again
+						log.debug("Authorization not found for {} - clearing token", username);
+						plugin.onAuthorizationStatusReceived(AuthorizationState.NO_TOKEN, null);
+					}
+				}
+				catch (Exception e)
+				{
+					log.error("Error parsing authorization status response", e);
+				}
+			}
+		});
+	}
+
+	/**
+	 * Start polling for authorization status.
+	 */
+	public void startAuthPolling()
+	{
+		if (authPollingTask != null)
+		{
+			return; // Already polling
+		}
+
+		authPollingTask = executor.scheduleAtFixedRate(() -> {
+			plugin.checkAuthorizationStatus();
+		}, AUTH_POLLING_INTERVAL, AUTH_POLLING_INTERVAL, TimeUnit.SECONDS);
+
+		log.debug("Authorization status polling started (every {} seconds)", AUTH_POLLING_INTERVAL);
+	}
+
+	/**
+	 * Stop polling for authorization status.
+	 */
+	public void stopAuthPolling()
+	{
+		if (authPollingTask != null)
+		{
+			authPollingTask.cancel(false);
+			authPollingTask = null;
+			log.debug("Authorization status polling stopped");
+		}
+	}
+
+	/**
+	 * Handle 401 unauthorized response - extract auth status and notify plugin.
+	 */
+	private void handleUnauthorizedResponse(String responseBody)
+	{
+		try
+		{
+			JsonObject jsonObj = new JsonParser().parse(responseBody).getAsJsonObject();
+			if (jsonObj.has("authStatus") && !jsonObj.get("authStatus").isJsonNull())
+			{
+				String status = jsonObj.get("authStatus").getAsString();
+				AuthorizationState newState = AuthorizationState.fromApiStatus(status);
+				plugin.onAuthorizationStatusReceived(newState, null);
+			}
+			else
+			{
+				// No token or not found - set to NO_TOKEN state
+				plugin.onAuthorizationStatusReceived(AuthorizationState.NO_TOKEN, null);
+			}
+		}
+		catch (Exception e)
+		{
+			log.error("Error parsing unauthorized response", e);
+		}
 	}
 }

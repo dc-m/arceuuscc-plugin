@@ -24,3 +24,12 @@ create_icon.ps1
 src/main/resources/arceuuscc.properties.example
 
 RunClient.bat
+
+# Local development scripts
+build-prod.bat
+build-test.bat
+run-prod.bat
+run-test.bat
+
+# Generated config (build output)
+src/main/resources/api-config.properties
