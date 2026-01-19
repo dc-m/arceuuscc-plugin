@@ -7,6 +7,7 @@ import javax.swing.BoxLayout;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
+import javax.swing.Timer;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
@@ -77,15 +78,9 @@ public class HeaderPanel extends JPanel
 					StringSelection selection = new StringSelection(token);
 					Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, null);
 					authCodeLabel.setText("Code: copied!");
-					// Reset text after 2 seconds
-					new Thread(() -> {
-						try
-						{
-							Thread.sleep(2000);
-							javax.swing.SwingUtilities.invokeLater(() -> updateAuthCode(token));
-						}
-						catch (InterruptedException ignored) {}
-					}).start();
+					Timer resetTimer = new Timer(2000, evt -> updateAuthCode(token));
+					resetTimer.setRepeats(false);
+					resetTimer.start();
 				}
 			}
 		});
