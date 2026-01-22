@@ -55,30 +55,21 @@ public class HttpEventClient
 			return;
 		}
 
-		// Fetch settings first, then start polling
 		requestSettings();
-
-		// Initial fetch
 		requestEvents();
-
-		// Check authorization status immediately (don't wait for polling interval)
 		plugin.checkAuthorizationStatus();
-
-		// Poll at configured interval (default 30 seconds, 0 = disabled)
 		startPolling();
 		log.debug("HTTP Event Client started, polling {}", apiUrl);
 	}
 
 	private void startPolling()
 	{
-		// Cancel existing polling task if any
 		if (pollingTask != null)
 		{
 			pollingTask.cancel(false);
 			pollingTask = null;
 		}
 
-		// If polling interval is 0, polling is disabled
 		if (pollingInterval <= 0)
 		{
 			log.debug("Event polling disabled (interval = 0)");
@@ -125,7 +116,6 @@ public class HttpEventClient
 			.url(apiUrl)
 			.get();
 
-		// Add auth headers for authorization
 		addAuthHeaders(builder);
 
 		Request request = builder.build();
@@ -209,7 +199,6 @@ public class HttpEventClient
 					if (response.isSuccessful())
 					{
 						log.debug("Successfully signed up for event {}", eventId);
-						// Refresh events to get updated signups
 						requestEvents();
 					}
 					else if (response.code() == 401)
@@ -256,7 +245,6 @@ public class HttpEventClient
 					if (response.isSuccessful())
 					{
 						log.debug("Successfully unsigned from event {}", eventId);
-						// Refresh events to get updated signups
 						requestEvents();
 					}
 					else if (response.code() == 401)
@@ -277,9 +265,6 @@ public class HttpEventClient
 
 	// ==================== NEWSLETTER METHODS ====================
 
-	/**
-	 * Request the latest newsletter from the API.
-	 */
 	public void requestLatestNewsletter()
 	{
 		String newsletterUrl = apiUrl.replace("events.php", "newsletters.php") + "?action=latest";
@@ -322,7 +307,6 @@ public class HttpEventClient
 					}
 					else
 					{
-						// No newsletter exists - clear the latest
 						plugin.onNewsletterReceived(null);
 						log.debug("No newsletter available");
 					}
@@ -335,9 +319,6 @@ public class HttpEventClient
 		});
 	}
 
-	/**
-	 * Request list of recent newsletters.
-	 */
 	public void requestNewsletters(int limit)
 	{
 		String newsletterUrl = apiUrl.replace("events.php", "newsletters.php") + "?limit=" + limit;
@@ -385,9 +366,6 @@ public class HttpEventClient
 		});
 	}
 
-	/**
-	 * Get newsletter image URL.
-	 */
 	public String getNewsletterImageUrl(int newsletterId)
 	{
 		return apiUrl.replace("events.php", "newsletters.php") + "?id=" + newsletterId + "&image=1";
@@ -395,9 +373,6 @@ public class HttpEventClient
 
 	// ==================== SETTINGS METHODS ====================
 
-	/**
-	 * Request plugin settings from the API.
-	 */
 	public void requestSettings()
 	{
 		String settingsUrl = apiUrl.replace("events.php", "settings.php");
@@ -416,7 +391,6 @@ public class HttpEventClient
 			public void onFailure(Call call, IOException e)
 			{
 				log.error("Failed to fetch plugin settings", e);
-				// Use defaults if settings fetch fails
 			}
 
 			@Override
@@ -448,12 +422,10 @@ public class HttpEventClient
 								settingsObj.get("show_newsletter_notifications").getAsBoolean() : true)
 							.build();
 
-						// Update polling interval
 						int newInterval = settings.getEventPollingInterval();
 						if (newInterval != pollingInterval)
 						{
 							pollingInterval = newInterval;
-							// Don't restart polling here - it will be started in start()
 						}
 
 						plugin.onSettingsReceived(settings);
@@ -474,9 +446,6 @@ public class HttpEventClient
 
 	// ==================== AUTHORIZATION METHODS ====================
 
-	/**
-	 * Add auth token header to request builder if token is available.
-	 */
 	private Request.Builder addAuthHeader(Request.Builder builder)
 	{
 		String token = plugin.getAuthToken();
@@ -487,9 +456,6 @@ public class HttpEventClient
 		return builder;
 	}
 
-	/**
-	 * Add auth headers (token and username) to request builder.
-	 */
 	private void addAuthHeaders(Request.Builder builder)
 	{
 		String token = plugin.getAuthToken();
@@ -505,9 +471,6 @@ public class HttpEventClient
 		}
 	}
 
-	/**
-	 * Submit authorization request to the API.
-	 */
 	public void submitAuthorizationRequest(String username, String token)
 	{
 		String authUrl = apiUrl.replace("events.php", "auth.php") + "?action=request";
@@ -550,9 +513,6 @@ public class HttpEventClient
 		});
 	}
 
-	/**
-	 * Check authorization status with the API.
-	 */
 	public void checkAuthorizationStatus(String username, String token)
 	{
 		String authUrl = apiUrl.replace("events.php", "auth.php") + "?action=check&username=" +
@@ -587,7 +547,6 @@ public class HttpEventClient
 					String json = body.string();
 					JsonObject jsonObj = new JsonParser().parse(json).getAsJsonObject();
 
-					// Check if authorization was found (API returns {"found": false} when not in DB)
 					boolean found = jsonObj.has("found") && jsonObj.get("found").getAsBoolean();
 
 					if (found && jsonObj.has("status") && !jsonObj.get("status").isJsonNull())
@@ -602,8 +561,6 @@ public class HttpEventClient
 
 						log.debug("Authorization status for {}: {} (reason: {})", username, status, reason);
 
-						// Only stop polling when ACCEPTED - keep polling for PENDING/REJECTED/REVOKED
-						// so user can see when admin changes their status
 						if (newState == AuthorizationState.ACCEPTED)
 						{
 							stopAuthPolling();
@@ -611,7 +568,6 @@ public class HttpEventClient
 					}
 					else if (!found || jsonObj.has("error"))
 					{
-						// Token not found in database - user needs to request access again
 						log.debug("Authorization not found for {} - clearing token", username);
 						plugin.onAuthorizationStatusReceived(AuthorizationState.NO_TOKEN, null);
 					}
@@ -624,14 +580,11 @@ public class HttpEventClient
 		});
 	}
 
-	/**
-	 * Start polling for authorization status.
-	 */
 	public void startAuthPolling()
 	{
 		if (authPollingTask != null)
 		{
-			return; // Already polling
+			return;
 		}
 
 		authPollingTask = executor.scheduleAtFixedRate(() -> {
@@ -641,9 +594,6 @@ public class HttpEventClient
 		log.debug("Authorization status polling started (every {} seconds)", AUTH_POLLING_INTERVAL);
 	}
 
-	/**
-	 * Stop polling for authorization status.
-	 */
 	public void stopAuthPolling()
 	{
 		if (authPollingTask != null)
@@ -654,9 +604,6 @@ public class HttpEventClient
 		}
 	}
 
-	/**
-	 * Handle 401 unauthorized response - extract auth status and notify plugin.
-	 */
 	private void handleUnauthorizedResponse(String responseBody)
 	{
 		try
@@ -670,7 +617,6 @@ public class HttpEventClient
 			}
 			else
 			{
-				// No token or not found - set to NO_TOKEN state
 				plugin.onAuthorizationStatusReceived(AuthorizationState.NO_TOKEN, null);
 			}
 		}

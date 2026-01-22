@@ -123,10 +123,8 @@ public class ArceuusCCPanel extends PluginPanel
 	 */
 	public void updateAuthorizationState()
 	{
-		// Clear any existing overlay panels
 		clearOverlayPanels();
 
-		// Check condition 1: User must be logged in
 		if (plugin.getPlayerName() == null)
 		{
 			remove(tabbedPane);
@@ -137,7 +135,6 @@ public class ArceuusCCPanel extends PluginPanel
 			return;
 		}
 
-		// Check condition 2: User must be in the Arceuus clan
 		if (!plugin.isInClan())
 		{
 			remove(tabbedPane);
@@ -148,7 +145,6 @@ public class ArceuusCCPanel extends PluginPanel
 			return;
 		}
 
-		// Check condition 3: User must have ACCEPTED authorization
 		AuthorizationState state = plugin.getAuthState();
 		if (!state.hasAccess())
 		{
@@ -161,8 +157,6 @@ public class ArceuusCCPanel extends PluginPanel
 			);
 			add(pendingApprovalPanel, BorderLayout.CENTER);
 
-			// Start polling for auth status changes (PENDING, REJECTED, or REVOKED)
-			// This allows the plugin to detect when an admin approves/changes status
 			if (plugin.getAuthToken() != null && plugin.getHttpClient() != null)
 			{
 				plugin.getHttpClient().startAuthPolling();
@@ -173,7 +167,6 @@ public class ArceuusCCPanel extends PluginPanel
 			return;
 		}
 
-		// All conditions met - show the main content
 		add(tabbedPane, BorderLayout.CENTER);
 		revalidate();
 		repaint();

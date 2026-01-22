@@ -120,7 +120,6 @@ public class HeaderPanel extends JPanel
 			}
 			clanStatusLabel.setVisible(true);
 
-			// Show auth code if available
 			String token = plugin.getAuthToken();
 			if (token != null)
 			{
@@ -142,7 +141,6 @@ public class HeaderPanel extends JPanel
 
 	private void updateAuthCode(String token)
 	{
-		// Show truncated token (first 8 chars) with click to copy hint
 		String displayToken = token.length() > 8
 			? token.substring(0, 8) + "..."
 			: token;
