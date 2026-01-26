@@ -12,35 +12,6 @@ repositories {
 
 def runeLiteVersion = 'latest.release'
 
-// ===========================================
-// Environment Configuration (test/prod)
-// Usage: gradle build -Penv=test
-//        gradle build -Penv=prod (default)
-//        gradle runClient -Penv=test
-// ===========================================
-def environment = project.hasProperty('env') ? project.property('env') : 'prod'
-
-def apiUrls = [
-    'prod': 'https://pixelperfectdigital.co.uk/arceuus/events.php',
-    'test': 'https://pixelperfectdigital.co.uk/arceuus-testing/events.php'
-]
-
-def apiUrl = apiUrls[environment] ?: apiUrls['prod']
-
-// Process resources with environment-specific values
-processResources {
-    filesMatching('api-config.properties') {
-        expand(
-            'apiUrl': apiUrl,
-            'apiEnvironment': environment
-        )
-    }
-}
-
-// Log which environment is being used
-println "Building for environment: ${environment}"
-println "API URL: ${apiUrl}"
-
 dependencies {
     compileOnly group: 'net.runelite', name: 'client', version: runeLiteVersion
 
