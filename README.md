@@ -12,8 +12,18 @@ A RuneLite plugin for the **Arceuus CC** clan that displays upcoming clan events
 - **Real-Time Updates** - Events and newsletters sync automatically
 - **Notifications** - Get alerts for new events, newsletters, events starting soon, and more
 - **Mark as Read** - Track which events and newsletters you've seen
+- **Secure Access** - Authorization system ensures only clan members can access content
 
 ## How to Use
+
+### Getting Started
+1. Log into Old School RuneScape
+2. Join the **Arceuus** clan chat
+3. Click **Request Access** in the plugin panel
+4. Wait for clan staff to approve your request
+5. Once approved, you'll have full access to events and newsletters
+
+Your auth code is shown in the header panel - click it to copy if staff need to verify your identity.
 
 ### Viewing Events
 Click the Arceuus CC icon in the RuneLite sidebar to open the events panel. Events are color-coded:
@@ -65,17 +75,22 @@ Choose between **Detailed** mode (full information) or **Minimal** mode (compact
 | Notify New Event | Alert when new events are posted |
 | Notify New Newsletter | Alert when new newsletters are published |
 | Unread Notifications on Login | Show notifications for unread content when you log in |
-| **General** | |
-| Auto Refresh | Automatically refresh content periodically |
 
 ## Requirements
 
 - RuneLite client
-- Membership in the Arceuus CC clan (for signup features)
+- Membership in the Arceuus CC clan
+- Approved authorization (request access through the plugin)
 
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
+
+### Version 2.0.0
+- **Authorization System**: Users must request and receive approval to use the plugin
+- **Requirements Panel**: Clear messaging when not logged in or not in clan
+- Content now always refreshes automatically (removed Auto Refresh setting)
+- Improved security with authorization checks on all actions
 
 ### Version 1.2.0
 - **Event Codewords**: Organizers can set secret codewords revealed only when events become active
