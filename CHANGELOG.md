@@ -4,6 +4,21 @@ All notable changes to the Arceuus CC RuneLite Plugin will be documented in this
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.2.0] - 2025-01-26
+
+### Added
+- **Event Codewords**: Event organizers can set an optional codeword that is revealed only when the event becomes active
+  - Hidden during UPCOMING status to prevent early leaks
+  - Displayed on both in-game overlay and Discord embed when event is ACTIVE
+- **Overlay Mode Setting**: Choose between Detailed and Minimal overlay display modes
+  - Detailed: Full multi-line display with all event information
+  - Minimal: Compact view with title, status, countdown, and codeword on fewer lines
+- **Live Event Signups**: Players can now sign up for events while they are ACTIVE (not just UPCOMING)
+
+### Changed
+- Overlay panel widths increased for better readability (180px detailed, 350px minimal)
+- Minimal mode uses color-coded display matching detailed view styling
+
 ## [1.1.0] - 2025-01-10
 
 ### Added

@@ -68,9 +68,10 @@ public class EventPanelBuilder
 		addDescriptionPreview(panel, event);
 		addDetailsButton(panel, event);
 
-		if (status.isUpcoming)
+		// Allow signups for both UPCOMING and ACTIVE events
+		if (status.isUpcoming || status.isActive)
 		{
-			addSignupButton(panel, event);
+			addSignupButton(panel, event, status.isActive);
 		}
 
 		wrapper.add(panel, BorderLayout.CENTER);
@@ -149,9 +150,10 @@ public class EventPanelBuilder
 		panel.add(button);
 	}
 
-	private void addSignupButton(JPanel panel, Event event)
+	private void addSignupButton(JPanel panel, Event event, boolean isActive)
 	{
-		boolean eventPassed = hasEventPassed(event);
+		// For active events, the event hasn't "passed" - it's still ongoing
+		boolean eventPassed = !isActive && hasEventPassed(event);
 		boolean isSignedUp = plugin.isSignedUp(event.getEventId());
 		boolean canSignUp = plugin.getPlayerName() != null && plugin.isInClan() && !eventPassed;
 

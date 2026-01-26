@@ -12,5 +12,6 @@ public class Event
 	private int durationMinutes;
 	private String description;
 	private String status;
+	private String codeword;
 	private List<Signup> signups;
 }

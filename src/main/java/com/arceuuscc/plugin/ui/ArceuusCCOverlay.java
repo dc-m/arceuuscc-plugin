@@ -127,26 +127,53 @@ public class ArceuusCCOverlay extends Overlay
 
 		panelComponent.getChildren().clear();
 
-		panelComponent.getChildren().add(TitleComponent.builder()
-			.text("ARCEUUS")
-			.color(ARCEUUS_PURPLE)
-			.build());
+		boolean isMinimalMode = config.overlayMode() == ArceuusCCConfig.OverlayMode.MINIMAL;
 
-		if (showActive)
+		// Set wider panel for minimal mode to fit content on fewer lines
+		if (isMinimalMode)
 		{
-			renderActiveEvent(activeEvent, now, isEndingSoon);
+			panelComponent.setPreferredSize(new Dimension(350, 0));
+		}
+		else
+		{
+			panelComponent.setPreferredSize(new Dimension(180, 0));
 		}
 
-		if (showUpcoming)
+		if (isMinimalMode)
 		{
+			// Minimal mode: compact display without header
 			if (showActive)
 			{
-				panelComponent.getChildren().add(LineComponent.builder().build());
+				renderActiveEventMinimal(activeEvent, now, isEndingSoon);
 			}
-			renderUpcomingEvent(upcomingEvent, now, isStartingSoon);
+			if (showUpcoming)
+			{
+				renderUpcomingEventMinimal(upcomingEvent, now, isStartingSoon);
+			}
+		}
+		else
+		{
+			// Detailed mode: original multi-line display with header
+			panelComponent.getChildren().add(TitleComponent.builder()
+				.text("ARCEUUS")
+				.color(ARCEUUS_PURPLE)
+				.build());
+			if (showActive)
+			{
+				renderActiveEvent(activeEvent, now, isEndingSoon);
+			}
+
+			if (showUpcoming)
+			{
+				if (showActive)
+				{
+					panelComponent.getChildren().add(LineComponent.builder().build());
+				}
+				renderUpcomingEvent(upcomingEvent, now, isStartingSoon);
+			}
 		}
 
-		// Show new newsletter notification
+		// Show new newsletter notification (same in both modes)
 		if (showNewsletter)
 		{
 			if (showActive || showUpcoming)
@@ -226,6 +253,94 @@ public class ArceuusCCOverlay extends Overlay
 			.right(String.valueOf(event.getSignups() != null ? event.getSignups().size() : 0))
 			.rightColor(Color.WHITE)
 			.build());
+
+		// Show codeword for active events
+		if (event.getCodeword() != null && !event.getCodeword().isEmpty())
+		{
+			panelComponent.getChildren().add(LineComponent.builder()
+				.left("Codeword:")
+				.leftColor(Color.GRAY)
+				.right(event.getCodeword())
+				.rightColor(STARTING_SOON_YELLOW)
+				.build());
+		}
+	}
+
+	private void renderActiveEventMinimal(Event event, LocalDateTime now, boolean isEndingSoon)
+	{
+		LocalDateTime endTime = parseDateTime(event.getStartTime())
+			.plusMinutes(event.getDurationMinutes());
+		long secondsLeft = ChronoUnit.SECONDS.between(now, endTime);
+
+		Color labelColor = isEndingSoon ? ENDING_SOON_RED : LIVE_GREEN;
+		boolean hasCodeword = event.getCodeword() != null && !event.getCodeword().isEmpty();
+
+		// Title line
+		panelComponent.getChildren().add(TitleComponent.builder()
+			.text(event.getTitle())
+			.color(Color.WHITE)
+			.build());
+
+		if (hasCodeword)
+		{
+			// Labels row: Ends In (left), Codeword (right)
+			panelComponent.getChildren().add(LineComponent.builder()
+				.left("Ends In")
+				.leftColor(labelColor)
+				.right("Codeword")
+				.rightColor(labelColor)
+				.build());
+
+			// Values row: time (left), codeword (right)
+			panelComponent.getChildren().add(LineComponent.builder()
+				.left(formatCountdown(secondsLeft))
+				.leftColor(STARTING_SOON_YELLOW)
+				.right(event.getCodeword())
+				.rightColor(STARTING_SOON_YELLOW)
+				.build());
+		}
+		else
+		{
+			// Just show Ends In without codeword
+			panelComponent.getChildren().add(LineComponent.builder()
+				.left("Ends In:")
+				.leftColor(labelColor)
+				.right(formatCountdown(secondsLeft))
+				.rightColor(STARTING_SOON_YELLOW)
+				.build());
+		}
+	}
+
+	private void renderUpcomingEventMinimal(Event event, LocalDateTime now, boolean isStartingSoon)
+	{
+		LocalDateTime startTime = parseDateTime(event.getStartTime());
+		long secondsUntil = ChronoUnit.SECONDS.between(now, startTime);
+
+		Color labelColor = isStartingSoon ? STARTING_SOON_YELLOW : UPCOMING_BLUE;
+
+		// Title line
+		panelComponent.getChildren().add(TitleComponent.builder()
+			.text(event.getTitle())
+			.color(Color.WHITE)
+			.build());
+
+		if (secondsUntil > 0)
+		{
+			// Starts In line
+			panelComponent.getChildren().add(LineComponent.builder()
+				.left("Starts In:")
+				.leftColor(labelColor)
+				.right(formatCountdown(secondsUntil))
+				.rightColor(STARTING_SOON_YELLOW)
+				.build());
+		}
+		else
+		{
+			panelComponent.getChildren().add(TitleComponent.builder()
+				.text("Starting now!")
+				.color(STARTING_SOON_YELLOW)
+				.build());
+		}
 	}
 
 	private void renderUpcomingEvent(Event event, LocalDateTime now, boolean isStartingSoon)
