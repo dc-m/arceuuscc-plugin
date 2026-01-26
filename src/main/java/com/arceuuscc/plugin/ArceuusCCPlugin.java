@@ -1,6 +1,7 @@
 package com.arceuuscc.plugin;
 
 import com.arceuuscc.plugin.http.HttpEventClient;
+import com.arceuuscc.plugin.models.AuthorizationState;
 import com.arceuuscc.plugin.models.Event;
 import com.arceuuscc.plugin.models.Newsletter;
 import com.arceuuscc.plugin.models.PluginSettings;
@@ -35,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 
 @Slf4j
@@ -45,7 +47,6 @@ import java.util.concurrent.ScheduledExecutorService;
 )
 public class ArceuusCCPlugin extends Plugin
 {
-	private static final String API_URL = "https://pixelperfectdigital.co.uk/arceuus/events.php";
 
 	@Inject
 	private Client client;
@@ -77,6 +78,8 @@ public class ArceuusCCPlugin extends Plugin
 	private static final String CONFIG_GROUP = "arceuuscc";
 	private static final String SEEN_EVENTS_KEY = "seenEventIds";
 	private static final String LAST_SEEN_NEWSLETTER_KEY = "lastSeenNewsletterId";
+	private static final String AUTH_TOKEN_KEY = "authToken";
+	private static final String AUTH_STATUS_KEY = "authStatus";
 
 	@Getter
 	private HttpEventClient httpClient;
@@ -113,6 +116,14 @@ public class ArceuusCCPlugin extends Plugin
 	@Getter
 	private PluginSettings pluginSettings = PluginSettings.builder().build();
 
+	@Getter
+	private String authToken = null;
+
+	@Getter
+	private AuthorizationState authState = AuthorizationState.UNKNOWN;
+
+	private String authReason = null;
+
 	@Provides
 	ArceuusCCConfig provideConfig(ConfigManager configManager)
 	{
@@ -124,8 +135,8 @@ public class ArceuusCCPlugin extends Plugin
 	{
 		log.debug("Arceuus CC plugin started");
 
-		// Load persisted seen state
 		loadSeenState();
+		loadAuthToken();
 
 		try
 		{
@@ -153,12 +164,25 @@ public class ArceuusCCPlugin extends Plugin
 
 			clientToolbar.addNavigation(navButton);
 
-			httpClient = new HttpEventClient(API_URL, this, okHttpClient, gson, executor);
+			httpClient = new HttpEventClient(ApiConfig.getApiUrl(), this, okHttpClient, gson, executor);
+			log.debug("Using API: {}", ApiConfig.getApiUrl());
 			httpClient.start();
 
-			// Fetch newsletters on startup
 			httpClient.requestLatestNewsletter();
 			httpClient.requestNewsletters(10);
+
+			if (client.getGameState() == GameState.LOGGED_IN && client.getLocalPlayer() != null)
+			{
+				playerName = client.getLocalPlayer().getName();
+				checkClanMembership();
+
+				if (authToken != null)
+				{
+					checkAuthorizationStatus();
+				}
+
+				SwingUtilities.invokeLater(() -> panel.updatePlayerInfo());
+			}
 		}
 		catch (Exception e)
 		{
@@ -189,7 +213,11 @@ public class ArceuusCCPlugin extends Plugin
 			log.debug("Player logged in: {}", playerName);
 			checkClanMembership();
 
-			// Send login notifications for unseen events/newsletters
+			if (authToken != null && httpClient != null)
+			{
+				checkAuthorizationStatus();
+			}
+
 			if (!loginNotificationSent && config.showNotifications() && config.notifyUnreadOnLogin())
 			{
 				loginNotificationSent = true;
@@ -206,7 +234,7 @@ public class ArceuusCCPlugin extends Plugin
 		{
 			playerName = null;
 			inClan = false;
-			loginNotificationSent = false; // Reset so we notify again on next login
+			loginNotificationSent = false;
 			SwingUtilities.invokeLater(() ->
 			{
 				panel.updatePlayerInfo();
@@ -218,7 +246,6 @@ public class ArceuusCCPlugin extends Plugin
 
 	private void sendLoginNotifications()
 	{
-		// Notify for unseen events
 		if (config.notifyNewEvent())
 		{
 			int unseenCount = 0;
@@ -244,7 +271,6 @@ public class ArceuusCCPlugin extends Plugin
 			}
 		}
 
-		// Notify for unread newsletter
 		if (config.notifyNewNewsletter() && latestNewsletter != null)
 		{
 			boolean isUnread = latestNewsletter.getId() > lastSeenNewsletterId;
@@ -277,11 +303,9 @@ public class ArceuusCCPlugin extends Plugin
 			SwingUtilities.invokeLater(() -> panel.updatePlayerInfo());
 		}
 
-		// Always check clan membership status
 		boolean wasInClan = inClan;
 		checkClanMembership();
 
-		// If clan status changed, update the UI
 		if (inClan != wasInClan)
 		{
 			SwingUtilities.invokeLater(() -> {
@@ -330,7 +354,6 @@ public class ArceuusCCPlugin extends Plugin
 
 	public void onEventsReceived(List<Event> newEvents)
 	{
-		// Notify for truly new events (not seen before in this session) - after initial load
 		if (initialEventsLoaded && config.showNotifications() && config.notifyNewEvent())
 		{
 			for (Event newEvent : newEvents)
@@ -471,7 +494,6 @@ public class ArceuusCCPlugin extends Plugin
 
 	public void onNewsletterReceived(Newsletter newsletter)
 	{
-		// If newsletter is null, clear latest and update UI
 		if (newsletter == null)
 		{
 			this.latestNewsletter = null;
@@ -480,17 +502,14 @@ public class ArceuusCCPlugin extends Plugin
 			return;
 		}
 
-		// Check if this is a new newsletter compared to what we last knew about
 		boolean isNewSinceLastPoll = newsletter.getId() > lastKnownNewsletterId;
 
-		// After initial load, notify for newly published newsletters during polling
 		if (initialNewsletterLoaded && isNewSinceLastPoll && config.showNotifications() && config.notifyNewNewsletter())
 		{
 			log.debug("New newsletter detected: {} (id={}), notifying user", newsletter.getTitle(), newsletter.getId());
 			notifier.notify("Arceuus CC - New Newsletter: " + newsletter.getTitle());
 		}
 
-		// Update tracking
 		if (newsletter.getId() > lastKnownNewsletterId)
 		{
 			lastKnownNewsletterId = newsletter.getId();
@@ -506,24 +525,19 @@ public class ArceuusCCPlugin extends Plugin
 		this.newsletters = newNewsletters;
 		if (newNewsletters.isEmpty())
 		{
-			// Clear latest newsletter if no newsletters exist
 			this.latestNewsletter = null;
 		}
 		else
 		{
 			Newsletter latest = newNewsletters.get(0);
-
-			// Check if this is a new newsletter compared to what we last knew about
 			boolean isNewSinceLastPoll = latest.getId() > lastKnownNewsletterId;
 
-			// After initial load, notify for newly published newsletters during polling
 			if (initialNewsletterLoaded && isNewSinceLastPoll && config.showNotifications() && config.notifyNewNewsletter())
 			{
 				log.debug("New newsletter detected from list: {} (id={}), notifying user", latest.getTitle(), latest.getId());
 				notifier.notify("Arceuus CC - New Newsletter: " + latest.getTitle());
 			}
 
-			// Update tracking
 			if (latest.getId() > lastKnownNewsletterId)
 			{
 				lastKnownNewsletterId = latest.getId();
@@ -632,7 +646,6 @@ public class ArceuusCCPlugin extends Plugin
 			settings.isRequireClanMembership(),
 			settings.getClanName());
 
-		// Update UI to reflect any settings changes
 		SwingUtilities.invokeLater(() -> {
 			panel.updatePlayerInfo();
 			panel.updateEvents();
@@ -641,10 +654,15 @@ public class ArceuusCCPlugin extends Plugin
 
 	/**
 	 * Check if the user should have access to plugin features.
-	 * Returns true if clan membership is not required OR user is in the correct clan.
+	 * Requires ACCEPTED authorization status AND (clan membership not required OR user is in the correct clan).
 	 */
 	public boolean hasPluginAccess()
 	{
+		if (!authState.hasAccess())
+		{
+			return false;
+		}
+
 		if (!pluginSettings.isRequireClanMembership())
 		{
 			return true;
@@ -666,7 +684,6 @@ public class ArceuusCCPlugin extends Plugin
 
 	private void loadSeenState()
 	{
-		// Load seen event IDs
 		String seenEventsStr = configManager.getConfiguration(CONFIG_GROUP, SEEN_EVENTS_KEY);
 		if (seenEventsStr != null && !seenEventsStr.isEmpty())
 		{
@@ -681,7 +698,6 @@ public class ArceuusCCPlugin extends Plugin
 			log.debug("Loaded {} seen event IDs from config", seenEventIds.size());
 		}
 
-		// Load last seen newsletter ID
 		String lastNewsletterStr = configManager.getConfiguration(CONFIG_GROUP, LAST_SEEN_NEWSLETTER_KEY);
 		if (lastNewsletterStr != null && !lastNewsletterStr.isEmpty())
 		{
@@ -708,5 +724,107 @@ public class ArceuusCCPlugin extends Plugin
 	{
 		configManager.setConfiguration(CONFIG_GROUP, LAST_SEEN_NEWSLETTER_KEY, String.valueOf(lastSeenNewsletterId));
 		log.debug("Saved last seen newsletter ID: {}", lastSeenNewsletterId);
+	}
+
+	// ==================== AUTHORIZATION METHODS ====================
+
+	private void loadAuthToken()
+	{
+		authToken = configManager.getConfiguration(CONFIG_GROUP, AUTH_TOKEN_KEY);
+
+		if (authToken == null || authToken.isEmpty())
+		{
+			authState = AuthorizationState.NO_TOKEN;
+			log.debug("No auth token found");
+		}
+		else
+		{
+			// Always set to UNKNOWN when we have a token - requires API verification
+			// This ensures revoked users can't see content before the check completes
+			authState = AuthorizationState.UNKNOWN;
+			log.debug("Loaded auth token, needs API verification");
+		}
+	}
+
+	private void saveAuthToken()
+	{
+		if (authToken != null)
+		{
+			configManager.setConfiguration(CONFIG_GROUP, AUTH_TOKEN_KEY, authToken);
+		}
+		configManager.setConfiguration(CONFIG_GROUP, AUTH_STATUS_KEY, authState.name());
+		log.debug("Saved auth token and status: {}", authState);
+	}
+
+	/**
+	 * Request access to the plugin. Generates a new token and submits it for approval.
+	 */
+	public void requestAccess()
+	{
+		if (playerName == null)
+		{
+			log.warn("Cannot request access - player name not known");
+			return;
+		}
+
+		authToken = UUID.randomUUID().toString();
+		authState = AuthorizationState.PENDING;
+		saveAuthToken();
+
+		log.debug("Requesting access for {}", playerName);
+
+		if (httpClient != null)
+		{
+			httpClient.submitAuthorizationRequest(playerName, authToken);
+		}
+
+		SwingUtilities.invokeLater(() -> panel.updateAuthorizationState());
+	}
+
+	/**
+	 * Called when authorization status is received from the API.
+	 */
+	public void onAuthorizationStatusReceived(AuthorizationState newState, String reason)
+	{
+		AuthorizationState oldState = authState;
+		authState = newState;
+		authReason = reason;
+
+		if (newState == AuthorizationState.NO_TOKEN)
+		{
+			authToken = null;
+			configManager.unsetConfiguration(CONFIG_GROUP, AUTH_TOKEN_KEY);
+			log.debug("Cleared auth token - not found in database");
+		}
+
+		saveAuthToken();
+
+		log.debug("Authorization status: {} -> {}", oldState, newState);
+
+		if (newState == AuthorizationState.ACCEPTED && oldState != AuthorizationState.ACCEPTED)
+		{
+			log.debug("Authorization accepted - fetching events and newsletters immediately");
+			if (httpClient != null)
+			{
+				httpClient.requestEvents();
+				httpClient.requestLatestNewsletter();
+				httpClient.requestNewsletters(10);
+			}
+		}
+
+		SwingUtilities.invokeLater(() -> panel.updateAuthorizationState());
+	}
+
+	public String getAuthReason()
+	{
+		return authReason;
+	}
+
+	public void checkAuthorizationStatus()
+	{
+		if (authToken != null && playerName != null && httpClient != null)
+		{
+			httpClient.checkAuthorizationStatus(playerName, authToken);
+		}
 	}
 }

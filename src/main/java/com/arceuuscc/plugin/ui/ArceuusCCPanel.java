@@ -1,6 +1,7 @@
 package com.arceuuscc.plugin.ui;
 
 import com.arceuuscc.plugin.ArceuusCCPlugin;
+import com.arceuuscc.plugin.models.AuthorizationState;
 import net.runelite.client.ui.PluginPanel;
 
 import javax.swing.JScrollPane;
@@ -19,6 +20,8 @@ public class ArceuusCCPanel extends PluginPanel
 	private final EventsTabPanel eventsTab;
 	private final NewslettersTabPanel newslettersTab;
 	private final JTabbedPane tabbedPane;
+	private PendingApprovalPanel pendingApprovalPanel;
+	private RequirementsPanel requirementsPanel;
 
 	public ArceuusCCPanel(ArceuusCCPlugin plugin)
 	{
@@ -52,6 +55,7 @@ public class ArceuusCCPanel extends PluginPanel
 
 		updateEvents();
 		updateNewsletters();
+		updateAuthorizationState();
 	}
 
 	public void updateConnectionStatus(boolean connected)
@@ -67,6 +71,7 @@ public class ArceuusCCPanel extends PluginPanel
 			updateEvents();
 			updateNewsletters();
 		}
+		updateAuthorizationState();
 	}
 
 	public void updateEvents()
@@ -106,6 +111,81 @@ public class ArceuusCCPanel extends PluginPanel
 		{
 			tabbedPane.setTitleAt(1, "Newsletters");
 			tabbedPane.setForegroundAt(1, null);
+		}
+	}
+
+	/**
+	 * Update the panel based on authorization state.
+	 * Shows the main tabbed content ONLY when all conditions are met:
+	 * 1. User is logged in
+	 * 2. User is in the Arceuus clan
+	 * 3. User has ACCEPTED authorization status
+	 */
+	public void updateAuthorizationState()
+	{
+		clearOverlayPanels();
+
+		if (plugin.getPlayerName() == null)
+		{
+			remove(tabbedPane);
+			requirementsPanel = new RequirementsPanel(RequirementsPanel.RequirementType.NOT_LOGGED_IN);
+			add(requirementsPanel, BorderLayout.CENTER);
+			revalidate();
+			repaint();
+			return;
+		}
+
+		if (!plugin.isInClan())
+		{
+			remove(tabbedPane);
+			requirementsPanel = new RequirementsPanel(RequirementsPanel.RequirementType.NOT_IN_CLAN);
+			add(requirementsPanel, BorderLayout.CENTER);
+			revalidate();
+			repaint();
+			return;
+		}
+
+		AuthorizationState state = plugin.getAuthState();
+		if (!state.hasAccess())
+		{
+			remove(tabbedPane);
+			pendingApprovalPanel = new PendingApprovalPanel(
+				state,
+				plugin.getAuthToken(),
+				plugin.getAuthReason(),
+				() -> plugin.requestAccess()
+			);
+			add(pendingApprovalPanel, BorderLayout.CENTER);
+
+			if (plugin.getAuthToken() != null && plugin.getHttpClient() != null)
+			{
+				plugin.getHttpClient().startAuthPolling();
+			}
+
+			revalidate();
+			repaint();
+			return;
+		}
+
+		add(tabbedPane, BorderLayout.CENTER);
+		revalidate();
+		repaint();
+	}
+
+	/**
+	 * Remove any overlay panels (requirements or pending approval).
+	 */
+	private void clearOverlayPanels()
+	{
+		if (pendingApprovalPanel != null)
+		{
+			remove(pendingApprovalPanel);
+			pendingApprovalPanel = null;
+		}
+		if (requirementsPanel != null)
+		{
+			remove(requirementsPanel);
+			requirementsPanel = null;
 		}
 	}
 }

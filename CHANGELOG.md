@@ -4,12 +4,31 @@ All notable changes to the Arceuus CC RuneLite Plugin will be documented in this
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.0.0] - 2025-01-26
+
+### Added
+- **Authorization System**: Users must now request access to use the plugin
+  - Request access with a single click when logged in
+  - Access requests are reviewed by clan staff
+  - Auth code displayed in header panel (click to copy for verification)
+  - Automatic status checking while waiting for approval
+- **Requirements Panel**: Clear messaging when not logged in or not in clan
+- **Build Environments**: Support for test/prod API environments via Gradle build flags
+
+### Changed
+- Content now always refreshes automatically (removed Auto Refresh configuration option)
+- Improved polling using scheduled timers instead of threads
+- Auth headers sent with all API requests for access control
+
+### Security
+- All plugin features now require authorization approval
+- Signup/unsignup actions validate authorization status
+- Unauthorized users cannot view events or newsletters
+
 ## [1.2.0] - 2025-01-26
 
 ### Added
-- **Event Codewords**: Event organizers can set an optional codeword that is revealed only when the event becomes active
-  - Hidden during UPCOMING status to prevent early leaks
-  - Displayed on both in-game overlay and Discord embed when event is ACTIVE
+- **Event Codewords**: Event organizers can set an optional codeword that is revealed only when the event becomes active (hidden during UPCOMING, visible when ACTIVE)
 - **Overlay Mode Setting**: Choose between Detailed and Minimal overlay display modes
   - Detailed: Full multi-line display with all event information
   - Minimal: Compact view with title, status, countdown, and codeword on fewer lines

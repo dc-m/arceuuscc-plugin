@@ -4,26 +4,33 @@ import com.arceuuscc.plugin.ArceuusCCPlugin;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
+import javax.swing.Timer;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Font;
+import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 /**
  * Header panel with title, connection status, and refresh button.
  */
 public class HeaderPanel extends JPanel
 {
+	private final ArceuusCCPlugin plugin;
 	private final JLabel connectionStatus;
 	private final JLabel playerInfoLabel;
 	private final JLabel clanStatusLabel;
-	private final JButton refreshButton;
+	private final JLabel authCodeLabel;
 
 	public HeaderPanel(ArceuusCCPlugin plugin)
 	{
+		this.plugin = plugin;
 		setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 		setBackground(PanelColors.getDarkerGray());
 		setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -53,15 +60,31 @@ public class HeaderPanel extends JPanel
 		clanStatusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		add(clanStatusLabel);
 
-		add(Box.createVerticalStrut(10));
-
-		refreshButton = new JButton("Refresh");
-		refreshButton.setAlignmentX(Component.LEFT_ALIGNMENT);
-		refreshButton.addActionListener(e -> {
-			plugin.refreshEvents();
-			plugin.refreshNewsletters();
+		authCodeLabel = new JLabel("");
+		authCodeLabel.setFont(new Font("Monospaced", Font.PLAIN, 10));
+		authCodeLabel.setForeground(PanelColors.getLightGray());
+		authCodeLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+		authCodeLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		authCodeLabel.setToolTipText("Click to copy auth code");
+		authCodeLabel.setVisible(false);
+		authCodeLabel.addMouseListener(new MouseAdapter()
+		{
+			@Override
+			public void mouseClicked(MouseEvent e)
+			{
+				String token = plugin.getAuthToken();
+				if (token != null)
+				{
+					StringSelection selection = new StringSelection(token);
+					Toolkit.getDefaultToolkit().getSystemClipboard().setContents(selection, null);
+					authCodeLabel.setText("Code: copied!");
+					Timer resetTimer = new Timer(2000, evt -> updateAuthCode(token));
+					resetTimer.setRepeats(false);
+					resetTimer.start();
+				}
+			}
 		});
-		add(refreshButton);
+		add(authCodeLabel);
 	}
 
 	public void updateConnectionStatus(boolean connected)
@@ -70,13 +93,11 @@ public class HeaderPanel extends JPanel
 		{
 			connectionStatus.setText("Connected");
 			connectionStatus.setForeground(PanelColors.CONNECTED);
-			refreshButton.setEnabled(true);
 		}
 		else
 		{
 			connectionStatus.setText("Disconnected");
 			connectionStatus.setForeground(PanelColors.DISCONNECTED);
-			refreshButton.setEnabled(false);
 		}
 	}
 
@@ -98,11 +119,31 @@ public class HeaderPanel extends JPanel
 				clanStatusLabel.setForeground(PanelColors.WARNING);
 			}
 			clanStatusLabel.setVisible(true);
+
+			String token = plugin.getAuthToken();
+			if (token != null)
+			{
+				updateAuthCode(token);
+				authCodeLabel.setVisible(true);
+			}
+			else
+			{
+				authCodeLabel.setVisible(false);
+			}
 		}
 		else
 		{
 			playerInfoLabel.setVisible(false);
 			clanStatusLabel.setVisible(false);
+			authCodeLabel.setVisible(false);
 		}
+	}
+
+	private void updateAuthCode(String token)
+	{
+		String displayToken = token.length() > 8
+			? token.substring(0, 8) + "..."
+			: token;
+		authCodeLabel.setText("Code: " + displayToken + " (click to copy)");
 	}
 }

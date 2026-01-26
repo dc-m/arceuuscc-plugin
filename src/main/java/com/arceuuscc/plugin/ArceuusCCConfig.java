@@ -209,14 +209,4 @@ public interface ArceuusCCConfig extends Config
 		return true;
 	}
 
-	@ConfigItem(
-		keyName = "autoRefresh",
-		name = "Auto Refresh",
-		description = "Automatically refresh events list periodically",
-		position = 10
-	)
-	default boolean autoRefresh()
-	{
-		return true;
-	}
 }
