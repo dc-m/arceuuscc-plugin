@@ -8,6 +8,25 @@ import net.runelite.client.config.ConfigSection;
 @ConfigGroup("arceuuscc")
 public interface ArceuusCCConfig extends Config
 {
+	enum OverlayMode
+	{
+		DETAILED("Detailed"),
+		MINIMAL("Minimal");
+
+		private final String name;
+
+		OverlayMode(String name)
+		{
+			this.name = name;
+		}
+
+		@Override
+		public String toString()
+		{
+			return name;
+		}
+	}
+
 	@ConfigSection(
 		name = "Overlay Settings",
 		description = "Configure the in-game overlay",
@@ -32,6 +51,18 @@ public interface ArceuusCCConfig extends Config
 	default boolean showOverlay()
 	{
 		return true;
+	}
+
+	@ConfigItem(
+		keyName = "overlayMode",
+		name = "Overlay Mode",
+		description = "Detailed shows full info, Minimal shows a compact 2-line view",
+		position = 1,
+		section = overlaySection
+	)
+	default OverlayMode overlayMode()
+	{
+		return OverlayMode.DETAILED;
 	}
 
 	@ConfigItem(

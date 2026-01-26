@@ -7,7 +7,8 @@ A RuneLite plugin for the **Arceuus CC** clan that displays upcoming clan events
 - **Event Panel** - View all upcoming, active, and recent clan events in the RuneLite sidebar
 - **Newsletter Support** - Read clan newsletters directly in RuneLite
 - **In-Game Overlay** - See live event countdowns and newsletter alerts while playing
-- **One-Click Signup** - Sign up for events directly from the plugin
+- **One-Click Signup** - Sign up for events directly from the plugin (even during live events!)
+- **Event Codewords** - Secret codewords revealed only when events go live
 - **Real-Time Updates** - Events and newsletters sync automatically
 - **Notifications** - Get alerts for new events, newsletters, events starting soon, and more
 - **Mark as Read** - Track which events and newsletters you've seen
@@ -39,10 +40,12 @@ You can also withdraw your signup by clicking the button again.
 
 ### In-Game Overlay
 The overlay shows:
-- Active events with time remaining
+- Active events with time remaining and codeword (if set)
 - Upcoming events starting within 3 hours
 - New newsletter alerts
 - Whether you're signed up for displayed events
+
+Choose between **Detailed** mode (full information) or **Minimal** mode (compact display) in settings.
 
 ### Configuration Options
 
@@ -50,6 +53,7 @@ The overlay shows:
 |---------|-------------|
 | **Overlay** | |
 | Show Overlay | Toggle the in-game event overlay |
+| Overlay Mode | Choose Detailed (full info) or Minimal (compact view) |
 | Show Active Event | Display currently running events |
 | Show Starting Soon | Highlight events starting within 30 minutes |
 | Show Upcoming | Display future scheduled events |
@@ -72,6 +76,12 @@ The overlay shows:
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
+
+### Version 1.2.0
+- **Event Codewords**: Organizers can set secret codewords revealed only when events become active
+- **Overlay Modes**: Choose between Detailed or Minimal overlay display
+- **Live Event Signups**: Sign up for events even while they're running
+- Improved overlay widths for better readability
 
 ### Version 1.1.0
 - **Newsletter Support**: Browse and read clan newsletters with full image rendering
