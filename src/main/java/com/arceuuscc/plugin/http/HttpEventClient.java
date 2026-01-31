@@ -256,7 +256,7 @@ public class HttpEventClient
 					else
 					{
 						String errorBody = body != null ? body.string() : "Unknown error";
-						log.error("Unsignup failed: {}", errorBody);
+						log.error("Unsignup failed (HTTP {}): {}", response.code(), errorBody);
 					}
 				}
 			}

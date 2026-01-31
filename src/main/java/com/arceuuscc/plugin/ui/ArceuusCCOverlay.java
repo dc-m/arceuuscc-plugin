@@ -17,6 +17,7 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 
 public class ArceuusCCOverlay extends Overlay
@@ -61,7 +62,7 @@ public class ArceuusCCOverlay extends Overlay
 		List<Event> events = plugin.getEvents();
 		LocalDateTime now = LocalDateTime.now();
 
-		Event activeEvent = null;
+		List<Event> activeEvents = new ArrayList<>();
 		Event upcomingEvent = null;
 
 		if (events != null)
@@ -70,7 +71,7 @@ public class ArceuusCCOverlay extends Overlay
 			{
 				if ("ACTIVE".equals(event.getStatus()))
 				{
-					activeEvent = event;
+					activeEvents.add(event);
 				}
 				else if ("UPCOMING".equals(event.getStatus()) && upcomingEvent == null)
 				{
@@ -84,7 +85,7 @@ public class ArceuusCCOverlay extends Overlay
 			}
 		}
 
-		boolean showActive = activeEvent != null && config.showActiveEvent();
+		boolean showActive = !activeEvents.isEmpty() && config.showActiveEvent();
 		boolean showUpcoming = upcomingEvent != null && config.showUpcoming();
 
 		boolean isStartingSoon = false;
@@ -97,20 +98,6 @@ public class ArceuusCCOverlay extends Overlay
 			if (isStartingSoon && !config.showStartingSoon())
 			{
 				showUpcoming = false;
-			}
-		}
-
-		boolean isEndingSoon = false;
-		if (activeEvent != null)
-		{
-			LocalDateTime endTime = parseDateTime(activeEvent.getStartTime())
-				.plusMinutes(activeEvent.getDurationMinutes());
-			long minutesLeft = ChronoUnit.MINUTES.between(now, endTime);
-			isEndingSoon = minutesLeft <= 30 && minutesLeft >= 0;
-
-			if (isEndingSoon && !config.showEndingSoon())
-			{
-				isEndingSoon = false;
 			}
 		}
 
@@ -129,22 +116,19 @@ public class ArceuusCCOverlay extends Overlay
 
 		boolean isMinimalMode = config.overlayMode() == ArceuusCCConfig.OverlayMode.MINIMAL;
 
-		// Set wider panel for minimal mode to fit content on fewer lines
-		if (isMinimalMode)
-		{
-			panelComponent.setPreferredSize(new Dimension(350, 0));
-		}
-		else
-		{
-			panelComponent.setPreferredSize(new Dimension(180, 0));
-		}
+		// Let RuneLite auto-size the overlay width based on content
+		panelComponent.setPreferredSize(new Dimension(0, 0));
 
 		if (isMinimalMode)
 		{
 			// Minimal mode: compact display without header
 			if (showActive)
 			{
-				renderActiveEventMinimal(activeEvent, now, isEndingSoon);
+				for (Event active : activeEvents)
+				{
+					boolean isEndingSoon = isEventEndingSoon(active, now);
+					renderActiveEventMinimal(active, now, isEndingSoon);
+				}
 			}
 			if (showUpcoming)
 			{
@@ -160,7 +144,16 @@ public class ArceuusCCOverlay extends Overlay
 				.build());
 			if (showActive)
 			{
-				renderActiveEvent(activeEvent, now, isEndingSoon);
+				for (int i = 0; i < activeEvents.size(); i++)
+				{
+					if (i > 0)
+					{
+						panelComponent.getChildren().add(LineComponent.builder().build());
+					}
+					Event active = activeEvents.get(i);
+					boolean isEndingSoon = isEventEndingSoon(active, now);
+					renderActiveEvent(active, now, isEndingSoon);
+				}
 			}
 
 			if (showUpcoming)
@@ -392,6 +385,18 @@ public class ArceuusCCOverlay extends Overlay
 				.leftColor(LIVE_GREEN)
 				.build());
 		}
+	}
+
+	private boolean isEventEndingSoon(Event event, LocalDateTime now)
+	{
+		if (event.getDurationMinutes() <= 0)
+		{
+			return false;
+		}
+		LocalDateTime endTime = parseDateTime(event.getStartTime())
+			.plusMinutes(event.getDurationMinutes());
+		long minutesLeft = ChronoUnit.MINUTES.between(now, endTime);
+		return minutesLeft <= 30 && minutesLeft >= 0 && config.showEndingSoon();
 	}
 
 	private LocalDateTime parseDateTime(String isoTime)

@@ -16,34 +16,12 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.GraphicsEnvironment;
 
 /**
  * Dialog showing full event details.
  */
 public class EventDetailsDialog
 {
-	private static final String EMOJI_FONT = getEmojiFontName();
-
-	private static String getEmojiFontName()
-	{
-		String[] emojiFonts = {"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Symbol", "Arial"};
-		GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-		String[] availableFonts = ge.getAvailableFontFamilyNames();
-
-		for (String emojiFont : emojiFonts)
-		{
-			for (String available : availableFonts)
-			{
-				if (available.equalsIgnoreCase(emojiFont))
-				{
-					return emojiFont;
-				}
-			}
-		}
-		return "Arial";
-	}
-
 	public static void show(Component parent, Event event)
 	{
 		JPanel dialogPanel = new JPanel();
@@ -62,7 +40,7 @@ public class EventDetailsDialog
 	private static void addTitle(JPanel panel, Event event)
 	{
 		JLabel titleLabel = new JLabel(event.getTitle());
-		titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
+		titleLabel.setFont(new Font(PanelColors.getEmojiFont(), Font.BOLD, 16));
 		titleLabel.setForeground(PanelColors.UPCOMING_TITLE);
 		titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		panel.add(titleLabel);
@@ -100,7 +78,7 @@ public class EventDetailsDialog
 		panel.add(Box.createVerticalStrut(5));
 
 		JTextArea descArea = new JTextArea(event.getDescription());
-		descArea.setFont(new Font(EMOJI_FONT, Font.PLAIN, 12));
+		descArea.setFont(new Font(PanelColors.getEmojiFont(), Font.PLAIN, 12));
 		descArea.setForeground(Color.WHITE);
 		descArea.setBackground(PanelColors.getDarkGray());
 		descArea.setEditable(false);

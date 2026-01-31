@@ -64,9 +64,12 @@ public class NotificationService
 	{
 		for (Event newEvent : newEvents)
 		{
-			boolean isNew = existingEvents.stream()
+			// Check if event is new (not in previous poll AND not seen before)
+			boolean isNewInPoll = existingEvents.stream()
 				.noneMatch(e -> e.getEventId().equals(newEvent.getEventId()));
-			if (isNew && "UPCOMING".equals(newEvent.getStatus()))
+			boolean isUnseen = !readStateService.isEventSeen(newEvent.getEventId());
+
+			if (isNewInPoll && isUnseen && "UPCOMING".equals(newEvent.getStatus()))
 			{
 				notifier.notify(NOTIFICATION_PREFIX + "New Event: " + newEvent.getTitle());
 			}

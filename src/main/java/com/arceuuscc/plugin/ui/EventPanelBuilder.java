@@ -64,6 +64,7 @@ public class EventPanelBuilder
 
 		addTitle(panel, event, status);
 		addTimeInfo(panel, event);
+		addCountdown(panel, event);
 		addSignupCount(panel, event);
 		addDescriptionPreview(panel, event);
 		addDetailsButton(panel, event);
@@ -85,7 +86,7 @@ public class EventPanelBuilder
 			: event.getTitle();
 
 		JLabel label = new JLabel(text);
-		label.setFont(new Font("Arial", Font.BOLD, 13));
+		label.setFont(new Font(PanelColors.getEmojiFont(), Font.BOLD, 13));
 		label.setForeground(status.titleColor);
 		label.setAlignmentX(Component.LEFT_ALIGNMENT);
 		panel.add(label);
@@ -106,6 +107,22 @@ public class EventPanelBuilder
 		durationLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 		panel.add(durationLabel);
 		panel.add(Box.createVerticalStrut(4));
+	}
+
+	private void addCountdown(JPanel panel, Event event)
+	{
+		String countdown = FormatUtils.formatEventCountdown(event.getStartTime(), event.getDurationMinutes(), event.getStatus());
+		if (countdown == null)
+		{
+			return;
+		}
+
+		JLabel label = new JLabel(countdown);
+		label.setFont(new Font("Arial", Font.BOLD, 11));
+		label.setForeground("ACTIVE".equals(event.getStatus()) ? PanelColors.ACTIVE_TITLE : PanelColors.UPCOMING_TITLE);
+		label.setAlignmentX(Component.LEFT_ALIGNMENT);
+		panel.add(label);
+		panel.add(Box.createVerticalStrut(2));
 	}
 
 	private void addSignupCount(JPanel panel, Event event)

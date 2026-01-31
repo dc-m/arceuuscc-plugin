@@ -3,6 +3,7 @@ package com.arceuuscc.plugin.ui;
 import net.runelite.client.ui.ColorScheme;
 
 import java.awt.Color;
+import java.awt.GraphicsEnvironment;
 
 /**
  * Color constants used throughout the plugin UI.
@@ -71,5 +72,32 @@ public final class PanelColors
 	private PanelColors()
 	{
 		// Utility class
+	}
+
+	// Emoji font support
+	private static final String EMOJI_FONT = detectEmojiFont();
+
+	private static String detectEmojiFont()
+	{
+		String[] emojiFonts = {"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Symbol", "Arial"};
+		GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+		String[] availableFonts = ge.getAvailableFontFamilyNames();
+
+		for (String emojiFont : emojiFonts)
+		{
+			for (String available : availableFonts)
+			{
+				if (available.equalsIgnoreCase(emojiFont))
+				{
+					return emojiFont;
+				}
+			}
+		}
+		return "Arial";
+	}
+
+	public static String getEmojiFont()
+	{
+		return EMOJI_FONT;
 	}
 }
