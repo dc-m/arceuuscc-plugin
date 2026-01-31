@@ -7,6 +7,8 @@ import com.arceuuscc.plugin.models.Newsletter;
 import com.arceuuscc.plugin.models.PluginSettings;
 import com.arceuuscc.plugin.ui.ArceuusCCOverlay;
 import com.arceuuscc.plugin.ui.ArceuusCCPanel;
+import com.arceuuscc.plugin.ui.EventInfoBox;
+import com.arceuuscc.plugin.ui.NewsletterInfoBox;
 import com.google.gson.Gson;
 import com.google.inject.Provides;
 import lombok.Getter;
@@ -26,6 +28,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
+import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
 import net.runelite.client.util.ImageUtil;
 import okhttp3.OkHttpClient;
 
@@ -75,6 +78,9 @@ public class ArceuusCCPlugin extends Plugin
 	@Inject
 	private ConfigManager configManager;
 
+	@Inject
+	private InfoBoxManager infoBoxManager;
+
 	private static final String CONFIG_GROUP = "arceuuscc";
 	private static final String SEEN_EVENTS_KEY = "seenEventIds";
 	private static final String LAST_SEEN_NEWSLETTER_KEY = "lastSeenNewsletterId";
@@ -110,6 +116,10 @@ public class ArceuusCCPlugin extends Plugin
 	private final java.util.Set<String> hiddenOverlayEventIds = new java.util.HashSet<>();
 	// Track which upcoming events the user marked "Not Interested"
 	private final java.util.Set<String> notInterestedEventIds = new java.util.HashSet<>();
+	// InfoBox tracking for ICON_ONLY mode
+	private final List<EventInfoBox> activeInfoBoxes = new ArrayList<>();
+	private NewsletterInfoBox newsletterInfoBox = null;
+	private BufferedImage infoBoxIcon = null;
 	private boolean initialEventsLoaded = false;
 	private boolean loginNotificationSent = false;
 
@@ -150,6 +160,15 @@ public class ArceuusCCPlugin extends Plugin
 
 			overlay = new ArceuusCCOverlay(this, config);
 			overlayManager.add(overlay);
+
+			try
+			{
+				infoBoxIcon = ImageUtil.loadImageResource(getClass(), "icon.png");
+			}
+			catch (Exception e)
+			{
+				log.debug("Could not load infobox icon");
+			}
 
 			BufferedImage icon = null;
 			try
@@ -203,6 +222,7 @@ public class ArceuusCCPlugin extends Plugin
 
 		clientToolbar.removeNavigation(navButton);
 		overlayManager.remove(overlay);
+		clearInfoBoxes();
 
 		if (httpClient != null)
 		{
@@ -320,6 +340,8 @@ public class ArceuusCCPlugin extends Plugin
 				panel.updateNewsletters();
 			});
 		}
+
+		updateInfoBoxes();
 	}
 
 	private void checkClanMembership()
@@ -416,6 +438,7 @@ public class ArceuusCCPlugin extends Plugin
 		}
 
 		this.events = newEvents;
+		updateInfoBoxes();
 		SwingUtilities.invokeLater(() -> panel.updateEvents());
 	}
 
@@ -682,6 +705,106 @@ public class ArceuusCCPlugin extends Plugin
 	public boolean isNotInterested(String eventId)
 	{
 		return notInterestedEventIds.contains(eventId);
+	}
+
+	// ==================== INFOBOX METHODS ====================
+
+	public void updateInfoBoxes()
+	{
+		if (config.overlayMode() != ArceuusCCConfig.OverlayMode.ICON_ONLY || !config.showOverlay())
+		{
+			clearInfoBoxes();
+			return;
+		}
+
+		java.time.LocalDateTime now = java.time.LocalDateTime.now();
+
+		// Collect events that should show as InfoBoxes (same filtering as overlay)
+		List<Event> infoBoxEvents = new ArrayList<>();
+		if (events != null)
+		{
+			for (Event event : events)
+			{
+				String eventId = event.getEventId();
+				if ("ACTIVE".equals(event.getStatus()))
+				{
+					if (config.showActiveEvent() && isSignedUp(eventId) && !isOverlayHidden(eventId))
+					{
+						infoBoxEvents.add(event);
+					}
+				}
+				else if ("UPCOMING".equals(event.getStatus()))
+				{
+					java.time.LocalDateTime startTime = com.arceuuscc.plugin.util.DateTimeUtils.parseDateTime(event.getStartTime());
+					long minutesUntil = java.time.temporal.ChronoUnit.MINUTES.between(now, startTime);
+					if (config.showUpcoming() && minutesUntil <= 180 && minutesUntil >= 0
+						&& !isNotInterested(eventId) && !isOverlayHidden(eventId))
+					{
+						infoBoxEvents.add(event);
+					}
+				}
+			}
+		}
+
+		// Check if the current InfoBoxes match what we need
+		java.util.Set<String> currentIds = new java.util.HashSet<>();
+		for (EventInfoBox box : activeInfoBoxes)
+		{
+			currentIds.add(box.getEvent().getEventId());
+		}
+		java.util.Set<String> neededIds = new java.util.HashSet<>();
+		for (Event event : infoBoxEvents)
+		{
+			neededIds.add(event.getEventId());
+		}
+
+		if (!currentIds.equals(neededIds))
+		{
+			// Remove old InfoBoxes
+			for (EventInfoBox box : activeInfoBoxes)
+			{
+				infoBoxManager.removeInfoBox(box);
+			}
+			activeInfoBoxes.clear();
+
+			// Add new InfoBoxes
+			for (Event event : infoBoxEvents)
+			{
+				EventInfoBox box = new EventInfoBox(infoBoxIcon, this, event);
+				infoBoxManager.addInfoBox(box);
+				activeInfoBoxes.add(box);
+			}
+		}
+
+		// Newsletter InfoBox
+		boolean showNewsletter = config.showNewsletterOverlay()
+			&& pluginSettings != null && pluginSettings.isShowNewsletterNotifications()
+			&& hasUnreadNewsletter();
+
+		if (showNewsletter && newsletterInfoBox == null)
+		{
+			newsletterInfoBox = new NewsletterInfoBox(infoBoxIcon, this);
+			infoBoxManager.addInfoBox(newsletterInfoBox);
+		}
+		else if (!showNewsletter && newsletterInfoBox != null)
+		{
+			infoBoxManager.removeInfoBox(newsletterInfoBox);
+			newsletterInfoBox = null;
+		}
+	}
+
+	private void clearInfoBoxes()
+	{
+		for (EventInfoBox box : activeInfoBoxes)
+		{
+			infoBoxManager.removeInfoBox(box);
+		}
+		activeInfoBoxes.clear();
+		if (newsletterInfoBox != null)
+		{
+			infoBoxManager.removeInfoBox(newsletterInfoBox);
+			newsletterInfoBox = null;
+		}
 	}
 
 	// ==================== SETTINGS METHODS ====================
