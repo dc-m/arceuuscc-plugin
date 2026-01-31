@@ -11,7 +11,8 @@ public interface ArceuusCCConfig extends Config
 	enum OverlayMode
 	{
 		DETAILED("Detailed"),
-		MINIMAL("Minimal");
+		MINIMAL("Minimal"),
+		ICON_ONLY("Icon");
 
 		private final String name;
 
@@ -56,7 +57,7 @@ public interface ArceuusCCConfig extends Config
 	@ConfigItem(
 		keyName = "overlayMode",
 		name = "Overlay Mode",
-		description = "Detailed shows full info, Minimal shows a compact 2-line view",
+		description = "Detailed shows full info, Minimal shows compact view, Icon shows small event icons",
 		position = 1,
 		section = overlaySection
 	)

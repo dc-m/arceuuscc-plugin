@@ -75,6 +75,18 @@ public class EventPanelBuilder
 			addSignupButton(panel, event, status.isActive);
 		}
 
+		// Show/Hide Overlay toggle (only when signed up for active/upcoming)
+		if ((status.isActive || status.isUpcoming) && plugin.isSignedUp(event.getEventId()))
+		{
+			addOverlayToggleButton(panel, event);
+		}
+
+		// Not Interested button (only for upcoming events user is NOT signed up for)
+		if (status.isUpcoming && !plugin.isSignedUp(event.getEventId()))
+		{
+			addNotInterestedButton(panel, event);
+		}
+
 		wrapper.add(panel, BorderLayout.CENTER);
 		return wrapper;
 	}
@@ -185,6 +197,41 @@ public class EventPanelBuilder
 		button.setFont(new Font("Arial", Font.BOLD, 11));
 		button.setPreferredSize(new Dimension(100, 24));
 		button.setMaximumSize(new Dimension(100, 24));
+		panel.add(button);
+	}
+
+	private void addOverlayToggleButton(JPanel panel, Event event)
+	{
+		boolean hidden = plugin.isOverlayHidden(event.getEventId());
+		panel.add(Box.createVerticalStrut(4));
+		JButton button = new JButton(hidden ? "Show Overlay" : "Hide Overlay");
+		button.setFont(new Font("Arial", Font.PLAIN, 10));
+		button.setAlignmentX(Component.LEFT_ALIGNMENT);
+		button.setPreferredSize(new Dimension(100, 20));
+		button.setMaximumSize(new Dimension(100, 20));
+		button.addActionListener(e -> plugin.toggleOverlayVisibility(event.getEventId()));
+		panel.add(button);
+	}
+
+	private void addNotInterestedButton(JPanel panel, Event event)
+	{
+		boolean notInterested = plugin.isNotInterested(event.getEventId());
+		panel.add(Box.createVerticalStrut(4));
+		JButton button = new JButton(notInterested ? "Show Again" : "Not Interested");
+		button.setFont(new Font("Arial", Font.PLAIN, 10));
+		button.setAlignmentX(Component.LEFT_ALIGNMENT);
+		button.setPreferredSize(new Dimension(100, 20));
+		button.setMaximumSize(new Dimension(100, 20));
+		button.addActionListener(e -> {
+			if (plugin.isNotInterested(event.getEventId()))
+			{
+				plugin.clearNotInterested(event.getEventId());
+			}
+			else
+			{
+				plugin.markNotInterested(event.getEventId());
+			}
+		});
 		panel.add(button);
 	}
 

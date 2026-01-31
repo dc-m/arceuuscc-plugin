@@ -80,6 +80,8 @@ public class ArceuusCCPlugin extends Plugin
 	private static final String LAST_SEEN_NEWSLETTER_KEY = "lastSeenNewsletterId";
 	private static final String AUTH_TOKEN_KEY = "authToken";
 	private static final String AUTH_STATUS_KEY = "authStatus";
+	private static final String HIDDEN_OVERLAY_EVENTS_KEY = "hiddenOverlayEventIds";
+	private static final String NOT_INTERESTED_EVENTS_KEY = "notInterestedEventIds";
 
 	@Getter
 	private HttpEventClient httpClient;
@@ -104,6 +106,10 @@ public class ArceuusCCPlugin extends Plugin
 
 	// Track which events the user has seen (by event ID)
 	private final java.util.Set<String> seenEventIds = new java.util.HashSet<>();
+	// Track which events the user has hidden from the overlay
+	private final java.util.Set<String> hiddenOverlayEventIds = new java.util.HashSet<>();
+	// Track which upcoming events the user marked "Not Interested"
+	private final java.util.Set<String> notInterestedEventIds = new java.util.HashSet<>();
 	private boolean initialEventsLoaded = false;
 	private boolean loginNotificationSent = false;
 
@@ -432,6 +438,8 @@ public class ArceuusCCPlugin extends Plugin
 			log.warn("Cannot sign up - not in Arceuus clan chat");
 			return;
 		}
+		clearNotInterested(eventId);
+
 		if (httpClient != null && httpClient.isConnected())
 		{
 			log.debug("Sending signup request via HTTP");
@@ -636,6 +644,46 @@ public class ArceuusCCPlugin extends Plugin
 		return false;
 	}
 
+	// ==================== OVERLAY VISIBILITY METHODS ====================
+
+	public void toggleOverlayVisibility(String eventId)
+	{
+		if (hiddenOverlayEventIds.contains(eventId))
+		{
+			hiddenOverlayEventIds.remove(eventId);
+		}
+		else
+		{
+			hiddenOverlayEventIds.add(eventId);
+		}
+		saveHiddenOverlayEventIds();
+		SwingUtilities.invokeLater(() -> panel.updateEvents());
+	}
+
+	public boolean isOverlayHidden(String eventId)
+	{
+		return hiddenOverlayEventIds.contains(eventId);
+	}
+
+	public void markNotInterested(String eventId)
+	{
+		notInterestedEventIds.add(eventId);
+		saveNotInterestedEventIds();
+		SwingUtilities.invokeLater(() -> panel.updateEvents());
+	}
+
+	public void clearNotInterested(String eventId)
+	{
+		notInterestedEventIds.remove(eventId);
+		saveNotInterestedEventIds();
+		SwingUtilities.invokeLater(() -> panel.updateEvents());
+	}
+
+	public boolean isNotInterested(String eventId)
+	{
+		return notInterestedEventIds.contains(eventId);
+	}
+
 	// ==================== SETTINGS METHODS ====================
 
 	public void onSettingsReceived(PluginSettings settings)
@@ -698,6 +746,30 @@ public class ArceuusCCPlugin extends Plugin
 			log.debug("Loaded {} seen event IDs from config", seenEventIds.size());
 		}
 
+		String hiddenStr = configManager.getConfiguration(CONFIG_GROUP, HIDDEN_OVERLAY_EVENTS_KEY);
+		if (hiddenStr != null && !hiddenStr.isEmpty())
+		{
+			for (String id : hiddenStr.split(","))
+			{
+				if (!id.isEmpty())
+				{
+					hiddenOverlayEventIds.add(id);
+				}
+			}
+		}
+
+		String notInterestedStr = configManager.getConfiguration(CONFIG_GROUP, NOT_INTERESTED_EVENTS_KEY);
+		if (notInterestedStr != null && !notInterestedStr.isEmpty())
+		{
+			for (String id : notInterestedStr.split(","))
+			{
+				if (!id.isEmpty())
+				{
+					notInterestedEventIds.add(id);
+				}
+			}
+		}
+
 		String lastNewsletterStr = configManager.getConfiguration(CONFIG_GROUP, LAST_SEEN_NEWSLETTER_KEY);
 		if (lastNewsletterStr != null && !lastNewsletterStr.isEmpty())
 		{
@@ -718,6 +790,18 @@ public class ArceuusCCPlugin extends Plugin
 		String seenEventsStr = String.join(",", seenEventIds);
 		configManager.setConfiguration(CONFIG_GROUP, SEEN_EVENTS_KEY, seenEventsStr);
 		log.debug("Saved {} seen event IDs to config", seenEventIds.size());
+	}
+
+	private void saveHiddenOverlayEventIds()
+	{
+		String joined = String.join(",", hiddenOverlayEventIds);
+		configManager.setConfiguration(CONFIG_GROUP, HIDDEN_OVERLAY_EVENTS_KEY, joined);
+	}
+
+	private void saveNotInterestedEventIds()
+	{
+		String joined = String.join(",", notInterestedEventIds);
+		configManager.setConfiguration(CONFIG_GROUP, NOT_INTERESTED_EVENTS_KEY, joined);
 	}
 
 	private void saveLastSeenNewsletterId()

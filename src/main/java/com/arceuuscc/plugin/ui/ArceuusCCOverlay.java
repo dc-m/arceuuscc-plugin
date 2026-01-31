@@ -4,17 +4,26 @@ import com.arceuuscc.plugin.ArceuusCCConfig;
 import com.arceuuscc.plugin.ArceuusCCPlugin;
 import com.arceuuscc.plugin.models.Event;
 import com.arceuuscc.plugin.util.DateTimeUtils;
+import net.runelite.api.Client;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.components.LineComponent;
 import net.runelite.client.ui.overlay.components.PanelComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
+import net.runelite.client.ui.overlay.tooltip.Tooltip;
+import net.runelite.client.ui.overlay.tooltip.TooltipManager;
+import net.runelite.client.util.ImageUtil;
 
 import javax.inject.Inject;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -30,9 +39,27 @@ public class ArceuusCCOverlay extends Overlay
 	private static final Color NEWSLETTER_GOLD = new Color(218, 165, 32);
 	private static final Color NO_ACCESS_ORANGE = new Color(255, 140, 0);
 
+	private static final int ICON_SIZE = 32;
+	private static final int BOX_PAD = 1;
+	private static final int BOX_SIZE = ICON_SIZE + BOX_PAD * 2;
+	private static final int ICON_GAP = 2;
+	private static final Color BOX_BG = new Color(45, 45, 45);
+	private static final Color BOX_BORDER = new Color(90, 90, 90);
+
 	private final ArceuusCCPlugin plugin;
 	private final ArceuusCCConfig config;
 	private final PanelComponent panelComponent = new PanelComponent();
+	private BufferedImage arceuusIcon;
+
+	@Inject
+	private Client client;
+
+	@Inject
+	private TooltipManager tooltipManager;
+
+	// Icon mode hit-testing
+	private final List<Rectangle> iconBounds = new ArrayList<>();
+	private final List<Event> iconEvents = new ArrayList<>();
 
 	@Inject
 	public ArceuusCCOverlay(ArceuusCCPlugin plugin, ArceuusCCConfig config)
@@ -42,7 +69,16 @@ public class ArceuusCCOverlay extends Overlay
 		this.config = config;
 
 		setPosition(OverlayPosition.TOP_LEFT);
-		setLayer(OverlayLayer.ABOVE_SCENE);
+		setLayer(OverlayLayer.ABOVE_WIDGETS);
+
+		try
+		{
+			arceuusIcon = ImageUtil.loadImageResource(getClass(), "/com/arceuuscc/plugin/icon.png");
+		}
+		catch (Exception e)
+		{
+			arceuusIcon = null;
+		}
 	}
 
 	@Override
@@ -53,7 +89,6 @@ public class ArceuusCCOverlay extends Overlay
 			return null;
 		}
 
-		// Check if user has plugin access (is in clan if required)
 		if (!plugin.hasPluginAccess())
 		{
 			return renderNoAccessMessage(graphics);
@@ -62,33 +97,45 @@ public class ArceuusCCOverlay extends Overlay
 		List<Event> events = plugin.getEvents();
 		LocalDateTime now = LocalDateTime.now();
 
+		// Collect filtered events
 		List<Event> activeEvents = new ArrayList<>();
-		Event upcomingEvent = null;
+		List<Event> upcomingEvents = new ArrayList<>();
 
 		if (events != null)
 		{
 			for (Event event : events)
 			{
+				String eventId = event.getEventId();
+
 				if ("ACTIVE".equals(event.getStatus()))
 				{
-					activeEvents.add(event);
+					// Active events only show if user is signed up and not hidden
+					if (plugin.isSignedUp(eventId) && !plugin.isOverlayHidden(eventId))
+					{
+						activeEvents.add(event);
+					}
 				}
-				else if ("UPCOMING".equals(event.getStatus()) && upcomingEvent == null)
+				else if ("UPCOMING".equals(event.getStatus()))
 				{
 					LocalDateTime startTime = parseDateTime(event.getStartTime());
 					long minutesUntil = ChronoUnit.MINUTES.between(now, startTime);
-					if (minutesUntil <= 180 && minutesUntil >= 0)
+					if (minutesUntil <= 180 && minutesUntil >= 0
+						&& !plugin.isNotInterested(eventId)
+						&& !plugin.isOverlayHidden(eventId))
 					{
-						upcomingEvent = event;
+						upcomingEvents.add(event);
 					}
 				}
 			}
 		}
 
 		boolean showActive = !activeEvents.isEmpty() && config.showActiveEvent();
-		boolean showUpcoming = upcomingEvent != null && config.showUpcoming();
+
+		// For DETAILED/MINIMAL, use only the first upcoming event
+		Event upcomingEvent = upcomingEvents.isEmpty() ? null : upcomingEvents.get(0);
 
 		boolean isStartingSoon = false;
+		boolean showUpcoming = upcomingEvent != null && config.showUpcoming();
 		if (upcomingEvent != null)
 		{
 			LocalDateTime startTime = parseDateTime(upcomingEvent.getStartTime());
@@ -101,26 +148,28 @@ public class ArceuusCCOverlay extends Overlay
 			}
 		}
 
-		// Check if we should show newsletter notification
 		boolean showNewsletter = config.showNewsletterOverlay()
 			&& plugin.getPluginSettings().isShowNewsletterNotifications()
 			&& plugin.hasUnreadNewsletter();
 
-		// If nothing to show, return null
 		if (!showActive && !showUpcoming && !showNewsletter)
 		{
 			return null;
 		}
 
+		ArceuusCCConfig.OverlayMode mode = config.overlayMode();
+
+		if (mode == ArceuusCCConfig.OverlayMode.ICON_ONLY)
+		{
+			return renderIconMode(graphics, activeEvents, upcomingEvents, now, showNewsletter);
+		}
+
+		// Panel-based modes (DETAILED / MINIMAL)
 		panelComponent.getChildren().clear();
-
-		boolean isMinimalMode = config.overlayMode() == ArceuusCCConfig.OverlayMode.MINIMAL;
-
 		panelComponent.setPreferredSize(new Dimension(130, 0));
 
-		if (isMinimalMode)
+		if (mode == ArceuusCCConfig.OverlayMode.MINIMAL)
 		{
-			// Minimal mode: compact display without header
 			if (showActive)
 			{
 				for (Event active : activeEvents)
@@ -136,7 +185,6 @@ public class ArceuusCCOverlay extends Overlay
 		}
 		else
 		{
-			// Detailed mode: original multi-line display with header
 			panelComponent.getChildren().add(TitleComponent.builder()
 				.text("ARCEUUS")
 				.color(ARCEUUS_PURPLE)
@@ -165,7 +213,6 @@ public class ArceuusCCOverlay extends Overlay
 			}
 		}
 
-		// Show new newsletter notification (same in both modes)
 		if (showNewsletter)
 		{
 			if (showActive || showUpcoming)
@@ -177,6 +224,232 @@ public class ArceuusCCOverlay extends Overlay
 
 		return panelComponent.render(graphics);
 	}
+
+	// ==================== ICON MODE ====================
+
+	private Dimension renderIconMode(Graphics2D graphics, List<Event> activeEvents,
+		List<Event> upcomingEvents, LocalDateTime now, boolean showNewsletter)
+	{
+		iconBounds.clear();
+		iconEvents.clear();
+
+		List<Event> allEvents = new ArrayList<>();
+		if (config.showActiveEvent())
+		{
+			allEvents.addAll(activeEvents);
+		}
+		if (config.showUpcoming())
+		{
+			allEvents.addAll(upcomingEvents);
+		}
+
+		if (allEvents.isEmpty() && !showNewsletter)
+		{
+			return null;
+		}
+
+		graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+		int x = 0;
+		int maxHeight = 0;
+
+		for (Event event : allEvents)
+		{
+			int h = renderIconBox(graphics, event, now, x);
+			Rectangle bounds = new Rectangle(x, 0, BOX_SIZE, h);
+			iconBounds.add(bounds);
+			iconEvents.add(event);
+			if (h > maxHeight)
+			{
+				maxHeight = h;
+			}
+			x += BOX_SIZE + ICON_GAP;
+		}
+
+		// Newsletter icon
+		if (showNewsletter)
+		{
+			int h = renderNewsletterIconBox(graphics, x);
+			if (h > maxHeight)
+			{
+				maxHeight = h;
+			}
+			x += BOX_SIZE + ICON_GAP;
+		}
+
+		handleIconTooltip(graphics, now);
+
+		int totalWidth = x > 0 ? x - ICON_GAP : 0;
+		return new Dimension(totalWidth, maxHeight);
+	}
+
+	private int renderIconBox(Graphics2D graphics, Event event, LocalDateTime now, int x)
+	{
+		boolean isActive = "ACTIVE".equals(event.getStatus());
+		boolean hasCodeword = isActive && event.getCodeword() != null && !event.getCodeword().isEmpty();
+		Color statusColor = getIconColor(event, now);
+
+		// Gray background box (like RuneLite InfoBox)
+		graphics.setColor(BOX_BG);
+		graphics.fillRect(x, 0, BOX_SIZE, BOX_SIZE);
+		graphics.setColor(BOX_BORDER);
+		graphics.drawRect(x, 0, BOX_SIZE - 1, BOX_SIZE - 1);
+
+		// Colored status bar at top
+		graphics.setColor(statusColor);
+		graphics.fillRect(x + 1, 1, BOX_SIZE - 2, 2);
+
+		// Draw icon centered inside box
+		if (arceuusIcon != null)
+		{
+			graphics.drawImage(arceuusIcon, x + BOX_PAD, BOX_PAD, ICON_SIZE, ICON_SIZE, null);
+		}
+
+		// Abbreviated event name overlaid on bottom-right of icon (like item quantities)
+		String abbrev = event.getTitle().length() > 4
+			? event.getTitle().substring(0, 4)
+			: event.getTitle();
+		Font overlayFont = new Font("Arial", Font.BOLD, 10);
+		graphics.setFont(overlayFont);
+		FontMetrics fm = graphics.getFontMetrics();
+		int textW = fm.stringWidth(abbrev);
+		int textX = x + BOX_SIZE - textW - 3;
+		int textY = BOX_SIZE - 4;
+
+		// Text shadow
+		graphics.setColor(Color.BLACK);
+		graphics.drawString(abbrev, textX + 1, textY + 1);
+		// Text
+		graphics.setColor(Color.WHITE);
+		graphics.drawString(abbrev, textX, textY);
+
+		int y = BOX_SIZE;
+
+		// Codeword below box
+		if (hasCodeword)
+		{
+			String cw = event.getCodeword();
+			Font cwFont = new Font("Arial", Font.BOLD, 9);
+			graphics.setFont(cwFont);
+			fm = graphics.getFontMetrics();
+			int cwX = x + (BOX_SIZE - fm.stringWidth(cw)) / 2;
+			graphics.setColor(Color.BLACK);
+			graphics.drawString(cw, cwX, y + fm.getAscent());
+			y += fm.getHeight() + 1;
+		}
+
+		return y;
+	}
+
+	private int renderNewsletterIconBox(Graphics2D graphics, int x)
+	{
+		// Gray background box
+		graphics.setColor(BOX_BG);
+		graphics.fillRect(x, 0, BOX_SIZE, BOX_SIZE);
+		graphics.setColor(BOX_BORDER);
+		graphics.drawRect(x, 0, BOX_SIZE - 1, BOX_SIZE - 1);
+
+		// Gold status bar
+		graphics.setColor(NEWSLETTER_GOLD);
+		graphics.fillRect(x + 1, 1, BOX_SIZE - 2, 2);
+
+		// Draw icon
+		if (arceuusIcon != null)
+		{
+			graphics.drawImage(arceuusIcon, x + BOX_PAD, BOX_PAD, ICON_SIZE, ICON_SIZE, null);
+		}
+
+		// "NEW!" overlaid on bottom-right
+		Font overlayFont = new Font("Arial", Font.BOLD, 10);
+		graphics.setFont(overlayFont);
+		FontMetrics fm = graphics.getFontMetrics();
+		String label = "NEW!";
+		int textX = x + BOX_SIZE - fm.stringWidth(label) - 3;
+		int textY = BOX_SIZE - 4;
+		graphics.setColor(Color.BLACK);
+		graphics.drawString(label, textX + 1, textY + 1);
+		graphics.setColor(NEWSLETTER_GOLD);
+		graphics.drawString(label, textX, textY);
+
+		return BOX_SIZE;
+	}
+
+	private void handleIconTooltip(Graphics2D graphics, LocalDateTime now)
+	{
+		if (client == null)
+		{
+			return;
+		}
+
+		net.runelite.api.Point mouse = client.getMouseCanvasPosition();
+		if (mouse == null)
+		{
+			return;
+		}
+
+		// Use the graphics transform to get the overlay's actual screen position
+		int overlayX = (int) graphics.getTransform().getTranslateX();
+		int overlayY = (int) graphics.getTransform().getTranslateY();
+
+		int relX = mouse.getX() - overlayX;
+		int relY = mouse.getY() - overlayY;
+
+		for (int i = 0; i < iconBounds.size(); i++)
+		{
+			if (iconBounds.get(i).contains(relX, relY))
+			{
+				Event event = iconEvents.get(i);
+				String tooltip = buildEventTooltip(event, now);
+				tooltipManager.add(new Tooltip(tooltip));
+				return;
+			}
+		}
+	}
+
+	private String buildEventTooltip(Event event, LocalDateTime now)
+	{
+		StringBuilder sb = new StringBuilder();
+		sb.append(event.getTitle());
+
+		boolean isActive = "ACTIVE".equals(event.getStatus());
+
+		if (isActive)
+		{
+			LocalDateTime endTime = parseDateTime(event.getStartTime())
+				.plusMinutes(event.getDurationMinutes());
+			long secondsLeft = ChronoUnit.SECONDS.between(now, endTime);
+			sb.append("</br>Ends in: ").append(formatCountdown(secondsLeft));
+		}
+		else
+		{
+			LocalDateTime startTime = parseDateTime(event.getStartTime());
+			long secondsUntil = ChronoUnit.SECONDS.between(now, startTime);
+			sb.append("</br>Starts in: ").append(formatCountdown(secondsUntil));
+		}
+
+		int signups = event.getSignups() != null ? event.getSignups().size() : 0;
+		sb.append("</br>Signups: ").append(signups);
+
+		if (isActive && event.getCodeword() != null && !event.getCodeword().isEmpty())
+		{
+			sb.append("</br>Codeword: ").append(event.getCodeword());
+		}
+
+		return sb.toString();
+	}
+
+	private Color getIconColor(Event event, LocalDateTime now)
+	{
+		if ("ACTIVE".equals(event.getStatus()))
+		{
+			return isEventEndingSoon(event, now) ? ENDING_SOON_RED : LIVE_GREEN;
+		}
+		LocalDateTime startTime = parseDateTime(event.getStartTime());
+		long minutesUntil = ChronoUnit.MINUTES.between(now, startTime);
+		return (minutesUntil <= 30 && minutesUntil >= 0) ? STARTING_SOON_YELLOW : UPCOMING_BLUE;
+	}
+
+	// ==================== PANEL MODE RENDERERS ====================
 
 	private void renderNewsletterNotification()
 	{
@@ -246,7 +519,6 @@ public class ArceuusCCOverlay extends Overlay
 			.rightColor(Color.WHITE)
 			.build());
 
-		// Show codeword for active events
 		if (event.getCodeword() != null && !event.getCodeword().isEmpty())
 		{
 			panelComponent.getChildren().add(LineComponent.builder()
@@ -267,7 +539,6 @@ public class ArceuusCCOverlay extends Overlay
 		Color labelColor = isEndingSoon ? ENDING_SOON_RED : LIVE_GREEN;
 		boolean hasCodeword = event.getCodeword() != null && !event.getCodeword().isEmpty();
 
-		// Title line
 		panelComponent.getChildren().add(TitleComponent.builder()
 			.text(event.getTitle())
 			.color(Color.WHITE)
@@ -275,7 +546,6 @@ public class ArceuusCCOverlay extends Overlay
 
 		if (hasCodeword)
 		{
-			// Labels row: Ends In (left), Codeword (right)
 			panelComponent.getChildren().add(LineComponent.builder()
 				.left("Ends In")
 				.leftColor(labelColor)
@@ -283,7 +553,6 @@ public class ArceuusCCOverlay extends Overlay
 				.rightColor(labelColor)
 				.build());
 
-			// Values row: time (left), codeword (right)
 			panelComponent.getChildren().add(LineComponent.builder()
 				.left(formatCountdown(secondsLeft))
 				.leftColor(STARTING_SOON_YELLOW)
@@ -293,7 +562,6 @@ public class ArceuusCCOverlay extends Overlay
 		}
 		else
 		{
-			// Just show Ends In without codeword
 			panelComponent.getChildren().add(LineComponent.builder()
 				.left("Ends In:")
 				.leftColor(labelColor)
@@ -310,7 +578,6 @@ public class ArceuusCCOverlay extends Overlay
 
 		Color labelColor = isStartingSoon ? STARTING_SOON_YELLOW : UPCOMING_BLUE;
 
-		// Title line
 		panelComponent.getChildren().add(TitleComponent.builder()
 			.text(event.getTitle())
 			.color(Color.WHITE)
@@ -318,7 +585,6 @@ public class ArceuusCCOverlay extends Overlay
 
 		if (secondsUntil > 0)
 		{
-			// Starts In line
 			panelComponent.getChildren().add(LineComponent.builder()
 				.left("Starts In:")
 				.leftColor(labelColor)
@@ -385,6 +651,8 @@ public class ArceuusCCOverlay extends Overlay
 				.build());
 		}
 	}
+
+	// ==================== UTILITY METHODS ====================
 
 	private boolean isEventEndingSoon(Event event, LocalDateTime now)
 	{
