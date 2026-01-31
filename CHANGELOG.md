@@ -4,6 +4,19 @@ All notable changes to the Arceuus CC RuneLite Plugin will be documented in this
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.0.1] - 2026-01-31
+
+### Fixed
+- **Leave Event**: Fixed unable to leave/unsign from events
+- **Duration Display**: Duration now shows days and hours (e.g. "14d" instead of "336h")
+- **Multiple Active Events**: Overlay now shows all active events instead of only the last one
+
+### Added
+- **Sidebar Countdown**: Event cards in the sidebar now show a countdown (e.g. "Starts in: 2d 5h" or "Ends in: 1h 30m")
+
+### Changed
+- Overlay width now auto-sizes to fit content instead of using fixed widths
+
 ## [2.0.0] - 2025-01-26
 
 ### Added

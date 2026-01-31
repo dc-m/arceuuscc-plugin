@@ -86,6 +86,13 @@ Choose between **Detailed** mode (full information) or **Minimal** mode (compact
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
+### Version 2.0.1
+- Fixed unable to leave/unsign from events
+- Duration now shows days and hours instead of hours only
+- Overlay now shows all active events when multiple are running
+- Sidebar event cards now show countdown timers
+- Overlay width auto-sizes to fit content
+
 ### Version 2.0.0
 - **Authorization System**: Users must request and receive approval to use the plugin
 - **Requirements Panel**: Clear messaging when not logged in or not in clan

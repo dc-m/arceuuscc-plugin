@@ -116,8 +116,7 @@ public class ArceuusCCOverlay extends Overlay
 
 		boolean isMinimalMode = config.overlayMode() == ArceuusCCConfig.OverlayMode.MINIMAL;
 
-		// Let RuneLite auto-size the overlay width based on content
-		panelComponent.setPreferredSize(new Dimension(0, 0));
+		panelComponent.setPreferredSize(new Dimension(130, 0));
 
 		if (isMinimalMode)
 		{
@@ -438,6 +437,7 @@ public class ArceuusCCOverlay extends Overlay
 	private Dimension renderNoAccessMessage(Graphics2D graphics)
 	{
 		panelComponent.getChildren().clear();
+		panelComponent.setPreferredSize(new Dimension(180, 0));
 
 		panelComponent.getChildren().add(TitleComponent.builder()
 			.text("ARCEUUS CC")
