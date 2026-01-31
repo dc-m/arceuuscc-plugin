@@ -4,6 +4,27 @@ All notable changes to the Arceuus CC RuneLite Plugin will be documented in this
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.1.0] - 2026-01-31
+
+### Added
+- **Icon Overlay Mode**: New "Icon" overlay mode using RuneLite's native InfoBox system
+  - Displays compact event icons alongside other RuneLite InfoBoxes
+  - Abbreviated event title (first 4 characters) shown on each icon
+  - Hover tooltip with full event details: title, countdown, signups, and codeword
+  - Supports multiple simultaneous events as separate icons
+  - Newsletter icon shown when unread newsletters are available
+- **Per-Event Overlay Control**: "Show/Hide Overlay" button on event cards when signed up
+  - Hide individual events from the in-game overlay without affecting other events
+  - Persisted across client restarts
+- **Not Interested**: "Not Interested" button on upcoming events you haven't signed up for
+  - Hides the event from the overlay
+  - Automatically cleared if you sign up for the event
+  - Toggle back with "Show Again" button
+
+### Changed
+- Active events now only show in the overlay when you are signed up
+- Overlay mode options are now: Detailed, Minimal, and Icon
+
 ## [2.0.1] - 2026-01-31
 
 ### Fixed

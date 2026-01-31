@@ -86,6 +86,12 @@ Choose between **Detailed** mode (full information) or **Minimal** mode (compact
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
+### Version 2.1.0
+- **Icon Overlay Mode**: Compact event icons using RuneLite's native InfoBox system with hover tooltips
+- **Per-Event Overlay Control**: Show/Hide overlay for individual events when signed up
+- **Not Interested**: Hide upcoming events from overlay without signing up
+- Active events now only show in overlay when signed up
+
 ### Version 2.0.1
 - Fixed unable to leave/unsign from events
 - Duration now shows days and hours instead of hours only
@@ -101,7 +107,7 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 
 ### Version 1.2.0
 - **Event Codewords**: Organizers can set secret codewords revealed only when events become active
-- **Overlay Modes**: Choose between Detailed or Minimal overlay display
+- **Overlay Modes**: Choose between Detailed, Minimal, or Icon overlay display
 - **Live Event Signups**: Sign up for events even while they're running
 - Improved overlay widths for better readability
 
