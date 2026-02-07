@@ -201,6 +201,9 @@ public class ArceuusCCPlugin extends Plugin
 				playerName = client.getLocalPlayer().getName();
 				checkClanMembership();
 
+				// Load the player-specific auth token (now that we have playerName)
+				loadAuthToken();
+
 				if (authToken != null)
 				{
 					checkAuthorizationStatus();
@@ -239,6 +242,9 @@ public class ArceuusCCPlugin extends Plugin
 			log.debug("Player logged in: {}", playerName);
 			checkClanMembership();
 
+			// Load the player-specific auth token
+			loadAuthToken();
+
 			if (authToken != null && httpClient != null)
 			{
 				checkAuthorizationStatus();
@@ -261,6 +267,9 @@ public class ArceuusCCPlugin extends Plugin
 			playerName = null;
 			inClan = false;
 			loginNotificationSent = false;
+			// Reset auth state - will be reloaded when player logs in
+			authToken = null;
+			authState = AuthorizationState.NO_TOKEN;
 			SwingUtilities.invokeLater(() ->
 			{
 				panel.updatePlayerInfo();
@@ -935,32 +944,82 @@ public class ArceuusCCPlugin extends Plugin
 
 	// ==================== AUTHORIZATION METHODS ====================
 
+	/**
+	 * Get the player-specific config key for auth token.
+	 * Returns null if no player is logged in.
+	 */
+	private String getAuthTokenKey()
+	{
+		if (playerName == null || playerName.isEmpty())
+		{
+			return null;
+		}
+		return AUTH_TOKEN_KEY + "_" + playerName.toLowerCase();
+	}
+
+	/**
+	 * Get the player-specific config key for auth status.
+	 * Returns null if no player is logged in.
+	 */
+	private String getAuthStatusKey()
+	{
+		if (playerName == null || playerName.isEmpty())
+		{
+			return null;
+		}
+		return AUTH_STATUS_KEY + "_" + playerName.toLowerCase();
+	}
+
 	private void loadAuthToken()
 	{
-		authToken = configManager.getConfiguration(CONFIG_GROUP, AUTH_TOKEN_KEY);
+		String tokenKey = getAuthTokenKey();
+
+		if (tokenKey == null)
+		{
+			// No player logged in, can't load player-specific token
+			authToken = null;
+			authState = AuthorizationState.NO_TOKEN;
+			log.debug("No player logged in - cannot load auth token");
+			return;
+		}
+
+		authToken = configManager.getConfiguration(CONFIG_GROUP, tokenKey);
 
 		if (authToken == null || authToken.isEmpty())
 		{
 			authState = AuthorizationState.NO_TOKEN;
-			log.debug("No auth token found");
+			log.debug("No auth token found for player {}", playerName);
 		}
 		else
 		{
 			// Always set to UNKNOWN when we have a token - requires API verification
 			// This ensures revoked users can't see content before the check completes
 			authState = AuthorizationState.UNKNOWN;
-			log.debug("Loaded auth token, needs API verification");
+			log.debug("Loaded auth token for player {}, needs API verification", playerName);
 		}
 	}
 
 	private void saveAuthToken()
 	{
+		String tokenKey = getAuthTokenKey();
+		String statusKey = getAuthStatusKey();
+
+		if (tokenKey == null || statusKey == null)
+		{
+			log.warn("Cannot save auth token - no player logged in");
+			return;
+		}
+
 		if (authToken != null)
 		{
-			configManager.setConfiguration(CONFIG_GROUP, AUTH_TOKEN_KEY, authToken);
+			configManager.setConfiguration(CONFIG_GROUP, tokenKey, authToken);
 		}
-		configManager.setConfiguration(CONFIG_GROUP, AUTH_STATUS_KEY, authState.name());
-		log.debug("Saved auth token and status: {}", authState);
+		else
+		{
+			configManager.unsetConfiguration(CONFIG_GROUP, tokenKey);
+		}
+		configManager.setConfiguration(CONFIG_GROUP, statusKey, authState.name());
+		log.debug("Saved auth token and status for player {}: {}", playerName, authState);
 	}
 
 	/**
@@ -1000,8 +1059,12 @@ public class ArceuusCCPlugin extends Plugin
 		if (newState == AuthorizationState.NO_TOKEN)
 		{
 			authToken = null;
-			configManager.unsetConfiguration(CONFIG_GROUP, AUTH_TOKEN_KEY);
-			log.debug("Cleared auth token - not found in database");
+			String tokenKey = getAuthTokenKey();
+			if (tokenKey != null)
+			{
+				configManager.unsetConfiguration(CONFIG_GROUP, tokenKey);
+			}
+			log.debug("Cleared auth token for player {} - not found in database", playerName);
 		}
 
 		saveAuthToken();

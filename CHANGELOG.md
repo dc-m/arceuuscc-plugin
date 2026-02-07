@@ -4,6 +4,14 @@ All notable changes to the Arceuus CC RuneLite Plugin will be documented in this
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.1.1] - 2026-02-07
+
+### Fixed
+- **Auth Token Persistence**: Auth tokens are now stored per-player instead of globally
+  - Fixes issue where logging into a different OSRS account would cause the auth token to be cleared
+  - Each account now maintains its own authorization status
+  - Switching between accounts no longer requires re-requesting access
+
 ## [2.1.0] - 2026-01-31
 
 ### Added

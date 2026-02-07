@@ -82,49 +82,6 @@ Choose between **Detailed** mode (full information) or **Minimal** mode (compact
 - Membership in the Arceuus CC clan
 - Approved authorization (request access through the plugin)
 
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
-
-### Version 2.1.0
-- **Icon Overlay Mode**: Compact event icons using RuneLite's native InfoBox system with hover tooltips
-- **Per-Event Overlay Control**: Show/Hide overlay for individual events when signed up
-- **Not Interested**: Hide upcoming events from overlay without signing up
-- Active events now only show in overlay when signed up
-
-### Version 2.0.1
-- Fixed unable to leave/unsign from events
-- Duration now shows days and hours instead of hours only
-- Overlay now shows all active events when multiple are running
-- Sidebar event cards now show countdown timers
-- Overlay width auto-sizes to fit content
-
-### Version 2.0.0
-- **Authorization System**: Users must request and receive approval to use the plugin
-- **Requirements Panel**: Clear messaging when not logged in or not in clan
-- Content now always refreshes automatically (removed Auto Refresh setting)
-- Improved security with authorization checks on all actions
-
-### Version 1.2.0
-- **Event Codewords**: Organizers can set secret codewords revealed only when events become active
-- **Overlay Modes**: Choose between Detailed, Minimal, or Icon overlay display
-- **Live Event Signups**: Sign up for events even while they're running
-- Improved overlay widths for better readability
-
-### Version 1.1.0
-- **Newsletter Support**: Browse and read clan newsletters with full image rendering
-- **Read/Unread Tracking**: Mail icons show whether content has been viewed (closed = unread, open = read)
-- **Login Notifications**: Get notified of any unread content when you log in
-- **Newsletter Overlay**: In-game alert when new newsletters are published
-- **Persistent State**: Read status saves across client restarts
-
-### Version 1.0.1
-- Fixed game filter errors during certain activities
-- Removed deprecated crew membership setting
-
-### Version 1.0.0
-- Initial release with event viewing, signup functionality, real-time sync, and notifications
-
 ## Support
 
 Join the Arceuus CC Discord server for help and updates.
