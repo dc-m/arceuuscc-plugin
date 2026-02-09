@@ -4,6 +4,13 @@ All notable changes to the Arceuus CC RuneLite Plugin will be documented in this
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.1.3] - 2026-02-09
+
+### Fixed
+- **Auth Lost After Inactivity Logout**: Fixed users being forced to re-request access after being logged out due to inactivity
+  - Auth token now properly reloads when player name becomes available after login, resolving a race condition where the player entity wasn't ready when the LOGGED_IN game state fired
+  - Added resilience against transient API failures clearing auth tokens (requires 3 consecutive "not found" responses before clearing)
+
 ## [2.1.2] - 2026-02-09
 
 ### Fixed

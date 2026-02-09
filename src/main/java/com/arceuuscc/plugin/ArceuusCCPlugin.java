@@ -122,6 +122,9 @@ public class ArceuusCCPlugin extends Plugin
 	private BufferedImage infoBoxIcon = null;
 	private boolean initialEventsLoaded = false;
 	private boolean loginNotificationSent = false;
+	// Counter for consecutive "not found" auth responses before deleting the token
+	private int authNotFoundCounter = 0;
+	private static final int AUTH_NOT_FOUND_THRESHOLD = 3;
 
 	@Getter
 	private boolean inClan = false;
@@ -337,11 +340,31 @@ public class ArceuusCCPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
-		if (playerName == null && client.getLocalPlayer() != null)
+		if ((playerName == null || playerName.isEmpty()) && client.getLocalPlayer() != null)
 		{
-			playerName = client.getLocalPlayer().getName();
-			log.debug("Player name detected: {}", playerName);
-			SwingUtilities.invokeLater(() -> panel.updatePlayerInfo());
+			String name = client.getLocalPlayer().getName();
+			if (name != null && !name.isEmpty())
+			{
+				playerName = name;
+				log.debug("Player name detected: {}", playerName);
+
+				// Player name wasn't available when LOGGED_IN fired - reload auth token now
+				if (authToken == null)
+				{
+					loadAuthToken();
+
+					if (authToken != null && httpClient != null)
+					{
+						checkAuthorizationStatus();
+					}
+				}
+
+				SwingUtilities.invokeLater(() ->
+				{
+					panel.updatePlayerInfo();
+					panel.updateEvents();
+				});
+			}
 		}
 
 		boolean wasInClan = inClan;
@@ -1069,18 +1092,35 @@ public class ArceuusCCPlugin extends Plugin
 	public void onAuthorizationStatusReceived(AuthorizationState newState, String reason)
 	{
 		AuthorizationState oldState = authState;
-		authState = newState;
 		authReason = reason;
 
 		if (newState == AuthorizationState.NO_TOKEN)
 		{
-			authToken = null;
-			String tokenKey = getAuthTokenKey();
-			if (tokenKey != null)
+			authNotFoundCounter++;
+			log.debug("Auth not found for player {} ({}/{})", playerName, authNotFoundCounter, AUTH_NOT_FOUND_THRESHOLD);
+
+			if (authNotFoundCounter >= AUTH_NOT_FOUND_THRESHOLD)
 			{
-				configManager.unsetConfiguration(CONFIG_GROUP, tokenKey);
+				authState = newState;
+				authToken = null;
+				String tokenKey = getAuthTokenKey();
+				if (tokenKey != null)
+				{
+					configManager.unsetConfiguration(CONFIG_GROUP, tokenKey);
+				}
+				log.debug("Cleared auth token for player {} - not found after {} consecutive checks", playerName, authNotFoundCounter);
+				authNotFoundCounter = 0;
 			}
-			log.debug("Cleared auth token for player {} - not found in database", playerName);
+			else
+			{
+				// Don't clear the token yet - could be a transient failure
+				return;
+			}
+		}
+		else
+		{
+			authNotFoundCounter = 0;
+			authState = newState;
 		}
 
 		saveAuthToken();
