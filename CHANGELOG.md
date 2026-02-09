@@ -4,6 +4,16 @@ All notable changes to the Arceuus CC RuneLite Plugin will be documented in this
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.1.2] - 2026-02-09
+
+### Fixed
+- **UI Flashing**: Fixed sidebar panel constantly flashing/rebuilding during authorization polling
+  - Panel now only rebuilds when the display state actually changes
+  - Added state tracking to skip unnecessary UI updates
+- **False "Clan Required" Overlay**: Fixed overlay incorrectly showing "login to the clan" message when teleporting or loading new map areas
+  - Added debouncing to clan membership detection (requires 5 consecutive null readings before marking as not in clan)
+  - Prevents false negatives when clan channel data is briefly unavailable during loading
+
 ## [2.1.1] - 2026-02-07
 
 ### Fixed

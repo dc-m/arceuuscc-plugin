@@ -23,6 +23,17 @@ public class ArceuusCCPanel extends PluginPanel
 	private PendingApprovalPanel pendingApprovalPanel;
 	private RequirementsPanel requirementsPanel;
 
+	// Track current display state to avoid unnecessary UI rebuilds
+	private DisplayState currentDisplayState = null;
+
+	private enum DisplayState
+	{
+		NOT_LOGGED_IN,
+		NOT_IN_CLAN,
+		PENDING_AUTH,
+		AUTHORIZED
+	}
+
 	public ArceuusCCPanel(ArceuusCCPlugin plugin)
 	{
 		super(false);
@@ -123,53 +134,79 @@ public class ArceuusCCPanel extends PluginPanel
 	 */
 	public void updateAuthorizationState()
 	{
+		// Determine what state we should display
+		DisplayState targetState = determineDisplayState();
+
+		// Skip UI rebuild if state hasn't changed
+		if (targetState == currentDisplayState)
+		{
+			return;
+		}
+
+		currentDisplayState = targetState;
 		clearOverlayPanels();
 
+		switch (targetState)
+		{
+			case NOT_LOGGED_IN:
+				remove(tabbedPane);
+				requirementsPanel = new RequirementsPanel(RequirementsPanel.RequirementType.NOT_LOGGED_IN);
+				add(requirementsPanel, BorderLayout.CENTER);
+				break;
+
+			case NOT_IN_CLAN:
+				remove(tabbedPane);
+				requirementsPanel = new RequirementsPanel(RequirementsPanel.RequirementType.NOT_IN_CLAN);
+				add(requirementsPanel, BorderLayout.CENTER);
+				break;
+
+			case PENDING_AUTH:
+				remove(tabbedPane);
+				pendingApprovalPanel = new PendingApprovalPanel(
+					plugin.getAuthState(),
+					plugin.getAuthToken(),
+					plugin.getAuthReason(),
+					plugin::requestAccess
+				);
+				add(pendingApprovalPanel, BorderLayout.CENTER);
+
+				if (plugin.getAuthToken() != null && plugin.getHttpClient() != null)
+				{
+					plugin.getHttpClient().startAuthPolling();
+				}
+				break;
+
+			case AUTHORIZED:
+				add(tabbedPane, BorderLayout.CENTER);
+				break;
+		}
+
+		revalidate();
+		repaint();
+	}
+
+	/**
+	 * Determine what display state the panel should show based on current conditions.
+	 */
+	private DisplayState determineDisplayState()
+	{
 		if (plugin.getPlayerName() == null)
 		{
-			remove(tabbedPane);
-			requirementsPanel = new RequirementsPanel(RequirementsPanel.RequirementType.NOT_LOGGED_IN);
-			add(requirementsPanel, BorderLayout.CENTER);
-			revalidate();
-			repaint();
-			return;
+			return DisplayState.NOT_LOGGED_IN;
 		}
 
 		if (!plugin.isInClan())
 		{
-			remove(tabbedPane);
-			requirementsPanel = new RequirementsPanel(RequirementsPanel.RequirementType.NOT_IN_CLAN);
-			add(requirementsPanel, BorderLayout.CENTER);
-			revalidate();
-			repaint();
-			return;
+			return DisplayState.NOT_IN_CLAN;
 		}
 
-		AuthorizationState state = plugin.getAuthState();
-		if (!state.hasAccess())
+		AuthorizationState authState = plugin.getAuthState();
+		if (!authState.hasAccess())
 		{
-			remove(tabbedPane);
-			pendingApprovalPanel = new PendingApprovalPanel(
-				state,
-				plugin.getAuthToken(),
-				plugin.getAuthReason(),
-				() -> plugin.requestAccess()
-			);
-			add(pendingApprovalPanel, BorderLayout.CENTER);
-
-			if (plugin.getAuthToken() != null && plugin.getHttpClient() != null)
-			{
-				plugin.getHttpClient().startAuthPolling();
-			}
-
-			revalidate();
-			repaint();
-			return;
+			return DisplayState.PENDING_AUTH;
 		}
 
-		add(tabbedPane, BorderLayout.CENTER);
-		revalidate();
-		repaint();
+		return DisplayState.AUTHORIZED;
 	}
 
 	/**
@@ -187,5 +224,14 @@ public class ArceuusCCPanel extends PluginPanel
 			remove(requirementsPanel);
 			requirementsPanel = null;
 		}
+	}
+
+	/**
+	 * Reset the display state tracking, forcing a full UI rebuild on next update.
+	 * Call this when the player logs out to ensure fresh state on next login.
+	 */
+	public void resetDisplayState()
+	{
+		currentDisplayState = null;
 	}
 }

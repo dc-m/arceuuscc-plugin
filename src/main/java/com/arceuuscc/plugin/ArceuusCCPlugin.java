@@ -126,6 +126,10 @@ public class ArceuusCCPlugin extends Plugin
 	@Getter
 	private boolean inClan = false;
 
+	// Counter for consecutive null clan channel readings - prevents false negatives during loading/teleports
+	private int clanNullCounter = 0;
+	private static final int CLAN_NULL_THRESHOLD = 5; // Require 5 consecutive null readings (~3 seconds)
+
 	@Getter
 	private String playerName = null;
 
@@ -266,12 +270,14 @@ public class ArceuusCCPlugin extends Plugin
 		{
 			playerName = null;
 			inClan = false;
+			clanNullCounter = 0;
 			loginNotificationSent = false;
 			// Reset auth state - will be reloaded when player logs in
 			authToken = null;
 			authState = AuthorizationState.NO_TOKEN;
 			SwingUtilities.invokeLater(() ->
 			{
+				panel.resetDisplayState();
 				panel.updatePlayerInfo();
 				panel.updateEvents();
 				panel.updateNewsletters();
@@ -359,6 +365,9 @@ public class ArceuusCCPlugin extends Plugin
 
 		if (yourClan != null)
 		{
+			// Reset null counter when we get valid clan data
+			clanNullCounter = 0;
+
 			String clanName = yourClan.getName();
 			boolean wasInClan = inClan;
 
@@ -381,11 +390,18 @@ public class ArceuusCCPlugin extends Plugin
 		}
 		else
 		{
+			// Only set inClan to false after multiple consecutive null readings
+			// This prevents false negatives during teleports/loading when clan data is briefly unavailable
 			if (inClan)
 			{
-				log.debug("Left clan");
+				clanNullCounter++;
+				if (clanNullCounter >= CLAN_NULL_THRESHOLD)
+				{
+					log.debug("Left clan (after {} consecutive null readings)", clanNullCounter);
+					inClan = false;
+					clanNullCounter = 0;
+				}
 			}
-			inClan = false;
 		}
 	}
 
@@ -1082,7 +1098,11 @@ public class ArceuusCCPlugin extends Plugin
 			}
 		}
 
-		SwingUtilities.invokeLater(() -> panel.updateAuthorizationState());
+		// Only update UI if the state actually changed to prevent flashing
+		if (oldState != newState)
+		{
+			SwingUtilities.invokeLater(() -> panel.updateAuthorizationState());
+		}
 	}
 
 	public String getAuthReason()
