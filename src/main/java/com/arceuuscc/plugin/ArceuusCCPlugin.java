@@ -260,7 +260,7 @@ public class ArceuusCCPlugin extends Plugin
 				}
 			}
 
-			if (!loginNotificationSent && config.showNotifications() && config.notifyUnreadOnLogin())
+			if (!loginNotificationSent && hasPluginAccess() && config.showNotifications() && config.notifyUnreadOnLogin())
 			{
 				loginNotificationSent = true;
 				sendLoginNotifications();
@@ -433,7 +433,7 @@ public class ArceuusCCPlugin extends Plugin
 
 	public void onEventsReceived(List<Event> newEvents)
 	{
-		if (initialEventsLoaded && config.showNotifications() && config.notifyNewEvent())
+		if (initialEventsLoaded && hasPluginAccess() && config.showNotifications() && config.notifyNewEvent())
 		{
 			for (Event newEvent : newEvents)
 			{
@@ -447,7 +447,7 @@ public class ArceuusCCPlugin extends Plugin
 		}
 		initialEventsLoaded = true;
 
-		if (config.showNotifications())
+		if (hasPluginAccess() && config.showNotifications())
 		{
 			for (Event newEvent : newEvents)
 			{
@@ -586,7 +586,7 @@ public class ArceuusCCPlugin extends Plugin
 
 		boolean isNewSinceLastPoll = newsletter.getId() > lastKnownNewsletterId;
 
-		if (initialNewsletterLoaded && isNewSinceLastPoll && config.showNotifications() && config.notifyNewNewsletter())
+		if (initialNewsletterLoaded && isNewSinceLastPoll && hasPluginAccess() && config.showNotifications() && config.notifyNewNewsletter())
 		{
 			log.debug("New newsletter detected: {} (id={}), notifying user", newsletter.getTitle(), newsletter.getId());
 			notifier.notify("Arceuus CC - New Newsletter: " + newsletter.getTitle());
@@ -614,7 +614,7 @@ public class ArceuusCCPlugin extends Plugin
 			Newsletter latest = newNewsletters.get(0);
 			boolean isNewSinceLastPoll = latest.getId() > lastKnownNewsletterId;
 
-			if (initialNewsletterLoaded && isNewSinceLastPoll && config.showNotifications() && config.notifyNewNewsletter())
+			if (initialNewsletterLoaded && isNewSinceLastPoll && hasPluginAccess() && config.showNotifications() && config.notifyNewNewsletter())
 			{
 				log.debug("New newsletter detected from list: {} (id={}), notifying user", latest.getTitle(), latest.getId());
 				notifier.notify("Arceuus CC - New Newsletter: " + latest.getTitle());
