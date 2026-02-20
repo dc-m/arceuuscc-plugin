@@ -2,6 +2,7 @@ package com.arceuuscc.plugin.ui;
 
 import com.arceuuscc.plugin.ArceuusCCConfig;
 import com.arceuuscc.plugin.ArceuusCCPlugin;
+import com.arceuuscc.plugin.models.AuthorizationState;
 import com.arceuuscc.plugin.models.Event;
 import com.arceuuscc.plugin.util.DateTimeUtils;
 import net.runelite.client.ui.overlay.Overlay;
@@ -480,6 +481,26 @@ public class ArceuusCCOverlay extends Overlay
 			.left("discord.gg/Ka3bVn6nkW")
 			.leftColor(UPCOMING_BLUE)
 			.build());
+
+		if (plugin.isInClan() && plugin.getAuthState() == AuthorizationState.NO_TOKEN)
+		{
+			panelComponent.getChildren().add(LineComponent.builder().build());
+
+			panelComponent.getChildren().add(LineComponent.builder()
+				.left("To request authorization")
+				.leftColor(NO_ACCESS_ORANGE)
+				.build());
+
+			panelComponent.getChildren().add(LineComponent.builder()
+				.left("click the Arceuus CC")
+				.leftColor(NO_ACCESS_ORANGE)
+				.build());
+
+			panelComponent.getChildren().add(LineComponent.builder()
+				.left("icon on the sidebar")
+				.leftColor(NO_ACCESS_ORANGE)
+				.build());
+		}
 
 		return panelComponent.render(graphics);
 	}

@@ -63,7 +63,7 @@ public interface ArceuusCCConfig extends Config
 	)
 	default OverlayMode overlayMode()
 	{
-		return OverlayMode.DETAILED;
+		return OverlayMode.ICON_ONLY;
 	}
 
 	@ConfigItem(

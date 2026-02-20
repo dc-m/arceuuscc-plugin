@@ -762,7 +762,7 @@ public class ArceuusCCPlugin extends Plugin
 
 	public void updateInfoBoxes()
 	{
-		if (config.overlayMode() != ArceuusCCConfig.OverlayMode.ICON_ONLY || !config.showOverlay())
+		if (config.overlayMode() != ArceuusCCConfig.OverlayMode.ICON_ONLY || !config.showOverlay() || !hasPluginAccess())
 		{
 			clearInfoBoxes();
 			return;
