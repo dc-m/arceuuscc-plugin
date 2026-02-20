@@ -250,11 +250,14 @@ public class ArceuusCCPlugin extends Plugin
 			checkClanMembership();
 
 			// Load the player-specific auth token
-			loadAuthToken();
-
-			if (authToken != null && httpClient != null)
+			if (authToken == null)
 			{
-				checkAuthorizationStatus();
+				loadAuthToken();
+
+				if (authToken != null && httpClient != null)
+				{
+					checkAuthorizationStatus();
+				}
 			}
 
 			if (!loginNotificationSent && config.showNotifications() && config.notifyUnreadOnLogin())
