@@ -786,9 +786,7 @@ public class ArceuusCCPlugin extends Plugin
 				}
 				else if ("UPCOMING".equals(event.getStatus()))
 				{
-					java.time.LocalDateTime startTime = com.arceuuscc.plugin.util.DateTimeUtils.parseDateTime(event.getStartTime());
-					long minutesUntil = java.time.temporal.ChronoUnit.MINUTES.between(now, startTime);
-					if (config.showUpcoming() && minutesUntil <= 180 && minutesUntil >= 0
+					if (config.showUpcoming() && !isSignedUp(eventId)
 						&& !isNotInterested(eventId) && !isOverlayHidden(eventId))
 					{
 						infoBoxEvents.add(event);
