@@ -13,5 +13,6 @@ public class Event
 	private String description;
 	private String status;
 	private String codeword;
+	private boolean signupsEnabled = true;
 	private List<Signup> signups;
 }

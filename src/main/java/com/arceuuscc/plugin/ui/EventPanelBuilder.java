@@ -69,8 +69,8 @@ public class EventPanelBuilder
 		addDescriptionPreview(panel, event);
 		addDetailsButton(panel, event);
 
-		// Allow signups for both UPCOMING and ACTIVE events
-		if (status.isUpcoming || status.isActive)
+		// Allow signups for both UPCOMING and ACTIVE events (only if signups are enabled)
+		if ((status.isUpcoming || status.isActive) && event.isSignupsEnabled())
 		{
 			addSignupButton(panel, event, status.isActive);
 		}
@@ -139,8 +139,17 @@ public class EventPanelBuilder
 
 	private void addSignupCount(JPanel panel, Event event)
 	{
-		int count = event.getSignups() != null ? event.getSignups().size() : 0;
-		JLabel label = new JLabel("Signups: " + count);
+		String text;
+		if (event.isSignupsEnabled())
+		{
+			int count = event.getSignups() != null ? event.getSignups().size() : 0;
+			text = "Signups: " + count;
+		}
+		else
+		{
+			text = "No signup required";
+		}
+		JLabel label = new JLabel(text);
 		label.setFont(new Font("Arial", Font.PLAIN, 10));
 		label.setForeground(PanelColors.getLightGray());
 		label.setAlignmentX(Component.LEFT_ALIGNMENT);
