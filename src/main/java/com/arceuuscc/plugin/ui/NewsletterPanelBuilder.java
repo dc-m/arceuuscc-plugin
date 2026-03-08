@@ -123,6 +123,16 @@ public class NewsletterPanelBuilder
 			panel.add(editorLabel);
 		}
 
+		// Page count indicator
+		if (newsletter.getPageCount() > 1)
+		{
+			JLabel pagesLabel = new JLabel(newsletter.getPageCount() + " pages");
+			pagesLabel.setFont(new Font(FONT_ARIAL, Font.PLAIN, 9));
+			pagesLabel.setForeground(PanelColors.GOLD);
+			pagesLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+			panel.add(pagesLabel);
+		}
+
 		panel.add(Box.createVerticalStrut(8));
 
 		// View button
@@ -153,7 +163,7 @@ public class NewsletterPanelBuilder
 	}
 
 	/**
-	 * Shows a dialog with the full newsletter image.
+	 * Shows a dialog with the full newsletter image and page navigation.
 	 */
 	public void showNewsletterDialog(Newsletter newsletter)
 	{
@@ -171,13 +181,14 @@ public class NewsletterPanelBuilder
 		dialog.setTitle(newsletter.getTitle() + " - " + newsletter.getMonthYear());
 		dialog.setModal(true);
 		dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+		dialog.setLayout(new BorderLayout());
 
+		// Image content area
 		JPanel contentPanel = new JPanel();
 		contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
 		contentPanel.setBackground(PanelColors.DIALOG_BG);
 		contentPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
 
-		// Loading label
 		JLabel loadingLabel = new JLabel("Loading newsletter...");
 		loadingLabel.setFont(new Font(FONT_ARIAL, Font.PLAIN, 14));
 		loadingLabel.setForeground(Color.WHITE);
@@ -191,24 +202,104 @@ public class NewsletterPanelBuilder
 		scrollPane.setBorder(null);
 		scrollPane.getVerticalScrollBar().setUnitIncrement(16);
 		scrollPane.getHorizontalScrollBar().setUnitIncrement(16);
+		dialog.add(scrollPane, BorderLayout.CENTER);
 
-		dialog.add(scrollPane);
+		int totalPages = Math.max(1, newsletter.getPageCount());
+		final int[] currentPage = {1};
+
+		// Navigation bar (only shown if multiple pages)
+		if (totalPages > 1)
+		{
+			JPanel navBar = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+			navBar.setBackground(PanelColors.DIALOG_BG);
+
+			JButton prevButton = new JButton("< Prev");
+			JLabel pageLabel = new JLabel("Page 1 of " + totalPages);
+			JButton nextButton = new JButton("Next >");
+
+			prevButton.setEnabled(false);
+			pageLabel.setForeground(Color.WHITE);
+			pageLabel.setFont(new Font(FONT_ARIAL, Font.BOLD, 12));
+
+			for (JButton btn : new JButton[]{prevButton, nextButton})
+			{
+				btn.setFont(new Font(FONT_ARIAL, Font.BOLD, 11));
+				btn.setBackground(PanelColors.getMediumGray());
+				btn.setForeground(Color.WHITE);
+				btn.setPreferredSize(new Dimension(80, 28));
+			}
+
+			final int pages = totalPages;
+
+			prevButton.addActionListener(e -> {
+				if (currentPage[0] > 1)
+				{
+					currentPage[0]--;
+					pageLabel.setText("Page " + currentPage[0] + " of " + pages);
+					prevButton.setEnabled(currentPage[0] > 1);
+					nextButton.setEnabled(currentPage[0] < pages);
+					loadPage(newsletter.getId(), currentPage[0], contentPanel, scrollPane,
+						prevButton, nextButton);
+				}
+			});
+
+			nextButton.addActionListener(e -> {
+				if (currentPage[0] < pages)
+				{
+					currentPage[0]++;
+					pageLabel.setText("Page " + currentPage[0] + " of " + pages);
+					prevButton.setEnabled(currentPage[0] > 1);
+					nextButton.setEnabled(currentPage[0] < pages);
+					loadPage(newsletter.getId(), currentPage[0], contentPanel, scrollPane,
+						prevButton, nextButton);
+				}
+			});
+
+			navBar.add(prevButton);
+			navBar.add(pageLabel);
+			navBar.add(nextButton);
+			dialog.add(navBar, BorderLayout.SOUTH);
+		}
+
 		dialog.setSize(Math.min(900, maxDialogWidth), Math.min(800, maxDialogHeight));
 		dialog.setLocationRelativeTo(null);
 
-		// Load image in background
-		String imageUrl = plugin.getNewsletterImageUrl(newsletter.getId());
-		if (imageUrl != null)
-		{
-			loadNewsletterImage(imageUrl, contentPanel, loadingLabel, dialog, maxDialogWidth, maxDialogHeight);
-		}
+		// Load page 1
+		loadPage(newsletter.getId(), 1, contentPanel, scrollPane, null, null);
 
 		dialog.setVisible(true);
 	}
 
-	private void loadNewsletterImage(String imageUrl, JPanel contentPanel, JLabel loadingLabel,
-		JDialog dialog, int maxDialogWidth, int maxDialogHeight)
+	private void loadPage(int newsletterId, int page, JPanel contentPanel, JScrollPane scrollPane,
+		JButton prevButton, JButton nextButton)
 	{
+		// Disable nav buttons while loading
+		if (prevButton != null)
+		{
+			prevButton.setEnabled(false);
+		}
+		if (nextButton != null)
+		{
+			nextButton.setEnabled(false);
+		}
+
+		javax.swing.SwingUtilities.invokeLater(() -> {
+			contentPanel.removeAll();
+			JLabel loading = new JLabel("Loading page " + page + "...");
+			loading.setFont(new Font(FONT_ARIAL, Font.PLAIN, 14));
+			loading.setForeground(Color.WHITE);
+			loading.setAlignmentX(Component.CENTER_ALIGNMENT);
+			contentPanel.add(loading);
+			contentPanel.revalidate();
+			contentPanel.repaint();
+		});
+
+		String imageUrl = plugin.getNewsletterImageUrl(newsletterId, page);
+		if (imageUrl == null)
+		{
+			return;
+		}
+
 		new Thread(() -> {
 			try
 			{
@@ -216,31 +307,48 @@ public class NewsletterPanelBuilder
 				if (image != null)
 				{
 					ImageIcon icon = new ImageIcon(image);
-
 					javax.swing.SwingUtilities.invokeLater(() -> {
 						contentPanel.removeAll();
-
 						JLabel imageLabel = new JLabel(icon);
 						imageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 						contentPanel.add(imageLabel);
-
 						contentPanel.revalidate();
 						contentPanel.repaint();
-
-						// Resize dialog to fit image
-						int dialogWidth = Math.min(image.getWidth() + 60, maxDialogWidth);
-						int dialogHeight = Math.min(image.getHeight() + 80, maxDialogHeight);
-						dialog.setSize(dialogWidth, dialogHeight);
-						dialog.setLocationRelativeTo(null);
+						// Scroll to top on page change
+						scrollPane.getVerticalScrollBar().setValue(0);
+						// Re-enable nav buttons
+						if (prevButton != null)
+						{
+							prevButton.setEnabled(page > 1);
+						}
+						if (nextButton != null)
+						{
+							nextButton.setEnabled(true);
+						}
 					});
 				}
 			}
 			catch (Exception ex)
 			{
-				log.error("Failed to load newsletter image", ex);
+				log.error("Failed to load newsletter page {} for newsletter {}", page, newsletterId, ex);
 				javax.swing.SwingUtilities.invokeLater(() -> {
-					loadingLabel.setText("Failed to load newsletter image");
-					loadingLabel.setForeground(Color.RED);
+					contentPanel.removeAll();
+					JLabel error = new JLabel("Failed to load page " + page);
+					error.setFont(new Font(FONT_ARIAL, Font.PLAIN, 14));
+					error.setForeground(Color.RED);
+					error.setAlignmentX(Component.CENTER_ALIGNMENT);
+					contentPanel.add(error);
+					contentPanel.revalidate();
+					contentPanel.repaint();
+					// Re-enable nav buttons so user can try another page
+					if (prevButton != null)
+					{
+						prevButton.setEnabled(page > 1);
+					}
+					if (nextButton != null)
+					{
+						nextButton.setEnabled(true);
+					}
 				});
 			}
 		}).start();

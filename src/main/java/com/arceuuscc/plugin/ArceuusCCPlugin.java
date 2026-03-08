@@ -682,6 +682,15 @@ public class ArceuusCCPlugin extends Plugin
 		return null;
 	}
 
+	public String getNewsletterImageUrl(int newsletterId, int page)
+	{
+		if (httpClient != null)
+		{
+			return httpClient.getNewsletterImageUrl(newsletterId, page);
+		}
+		return null;
+	}
+
 	// ==================== EVENT READ STATUS METHODS ====================
 
 	public void markEventAsSeen(String eventId)

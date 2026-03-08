@@ -371,6 +371,11 @@ public class HttpEventClient
 		return apiUrl.replace("events.php", "newsletters.php") + "?id=" + newsletterId + "&image=1";
 	}
 
+	public String getNewsletterImageUrl(int newsletterId, int page)
+	{
+		return apiUrl.replace("events.php", "newsletters.php") + "?id=" + newsletterId + "&image=1&page=" + page;
+	}
+
 	// ==================== SETTINGS METHODS ====================
 
 	public void requestSettings()

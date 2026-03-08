@@ -16,6 +16,7 @@ public class Newsletter {
     private String publishedAt;
     private String createdAt;
     private String imageUrl;
+    private int pageCount = 1;
     private String contentJson; // Only populated when fetching full newsletter
 
     /**
