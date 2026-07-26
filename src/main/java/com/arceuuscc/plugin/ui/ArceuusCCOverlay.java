@@ -267,6 +267,16 @@ public class ArceuusCCOverlay extends Overlay
 				.right(event.getCodeword())
 				.rightColor(STARTING_SOON_YELLOW)
 				.build());
+
+			panelComponent.getChildren().add(LineComponent.builder()
+				.right(DateTimeUtils.currentUtcDate())
+				.rightColor(Color.GRAY)
+				.build());
+
+			panelComponent.getChildren().add(LineComponent.builder()
+				.right(DateTimeUtils.currentUtcTime())
+				.rightColor(Color.GRAY)
+				.build());
 		}
 	}
 
@@ -298,6 +308,16 @@ public class ArceuusCCOverlay extends Overlay
 				.leftColor(STARTING_SOON_YELLOW)
 				.right(event.getCodeword())
 				.rightColor(STARTING_SOON_YELLOW)
+				.build());
+
+			panelComponent.getChildren().add(LineComponent.builder()
+				.right(DateTimeUtils.currentUtcDate())
+				.rightColor(Color.GRAY)
+				.build());
+
+			panelComponent.getChildren().add(LineComponent.builder()
+				.right(DateTimeUtils.currentUtcTime())
+				.rightColor(Color.GRAY)
 				.build());
 		}
 		else

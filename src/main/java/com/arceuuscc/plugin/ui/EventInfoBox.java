@@ -85,6 +85,7 @@ public class EventInfoBox extends InfoBox
 		if (isActive && event.getCodeword() != null && !event.getCodeword().isEmpty())
 		{
 			sb.append("</br>").append(ColorUtil.wrapWithColorTag("Codeword: " + event.getCodeword(), STARTING_SOON_YELLOW));
+			sb.append("</br>").append(ColorUtil.wrapWithColorTag(DateTimeUtils.currentUtcTimestamp(), Color.GRAY));
 		}
 
 		return sb.toString();
