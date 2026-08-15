@@ -56,7 +56,7 @@ public class EventInfoBox extends InfoBox
 	@Override
 	public String getTooltip()
 	{
-		LocalDateTime now = LocalDateTime.now();
+		LocalDateTime now = DateTimeUtils.nowUtc();
 		StringBuilder sb = new StringBuilder();
 
 		boolean isActive = "ACTIVE".equals(event.getStatus());

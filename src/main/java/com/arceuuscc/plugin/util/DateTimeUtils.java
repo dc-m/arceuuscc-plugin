@@ -14,6 +14,11 @@ public class DateTimeUtils
 	private static final DateTimeFormatter UTC_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
 	private static final DateTimeFormatter UTC_MINUTE_FORMATTER = DateTimeFormatter.ofPattern("HH:mm 'UTC'");
 
+	public static LocalDateTime nowUtc()
+	{
+		return LocalDateTime.now(ZoneOffset.UTC);
+	}
+
 	public static String currentUtcDate()
 	{
 		return UTC_DATE_FORMATTER.format(ZonedDateTime.now(ZoneOffset.UTC)).toUpperCase(Locale.ENGLISH);

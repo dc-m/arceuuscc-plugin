@@ -58,7 +58,8 @@ public class ArceuusCCOverlay extends Overlay
 		}
 
 		List<Event> events = plugin.getEvents();
-		LocalDateTime now = LocalDateTime.now();
+		// Event times from the server are UTC, so countdowns must use UTC "now"
+		LocalDateTime now = DateTimeUtils.nowUtc();
 
 		// Collect filtered events
 		List<Event> activeEvents = new ArrayList<>();

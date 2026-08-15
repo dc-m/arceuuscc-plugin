@@ -101,7 +101,7 @@ public final class FormatUtils
 		try
 		{
 			LocalDateTime startTime = LocalDateTime.parse(startTimeIso);
-			LocalDateTime now = LocalDateTime.now();
+			LocalDateTime now = DateTimeUtils.nowUtc();
 
 			if ("ACTIVE".equals(status))
 			{

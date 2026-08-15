@@ -2,6 +2,7 @@ package com.arceuuscc.plugin.ui;
 
 import com.arceuuscc.plugin.ArceuusCCPlugin;
 import com.arceuuscc.plugin.models.Event;
+import com.arceuuscc.plugin.util.DateTimeUtils;
 import com.arceuuscc.plugin.util.FormatUtils;
 import lombok.extern.slf4j.Slf4j;
 
@@ -253,7 +254,7 @@ public class EventPanelBuilder
 		try
 		{
 			LocalDateTime startTime = LocalDateTime.parse(event.getStartTime());
-			return startTime.isBefore(LocalDateTime.now());
+			return startTime.isBefore(DateTimeUtils.nowUtc());
 		}
 		catch (Exception e)
 		{

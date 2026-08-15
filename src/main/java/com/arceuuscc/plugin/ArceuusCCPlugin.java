@@ -777,7 +777,7 @@ public class ArceuusCCPlugin extends Plugin
 			return;
 		}
 
-		java.time.LocalDateTime now = java.time.LocalDateTime.now();
+		java.time.LocalDateTime now = com.arceuuscc.plugin.util.DateTimeUtils.nowUtc();
 
 		// Collect events that should show as InfoBoxes (same filtering as overlay)
 		List<Event> infoBoxEvents = new ArrayList<>();
