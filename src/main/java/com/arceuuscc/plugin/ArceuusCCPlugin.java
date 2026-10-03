@@ -738,9 +738,13 @@ public class ArceuusCCPlugin extends Plugin
 
 	public void toggleOverlayVisibility(String eventId)
 	{
-		if (hiddenOverlayEventIds.contains(eventId))
+		if (hiddenOverlayEventIds.contains(eventId) || notInterestedEventIds.contains(eventId))
 		{
 			hiddenOverlayEventIds.remove(eventId);
+			if (notInterestedEventIds.remove(eventId))
+			{
+				saveNotInterestedEventIds();
+			}
 		}
 		else
 		{
@@ -753,6 +757,20 @@ public class ArceuusCCPlugin extends Plugin
 	public boolean isOverlayHidden(String eventId)
 	{
 		return hiddenOverlayEventIds.contains(eventId);
+	}
+
+	/**
+	 * Whether an active event belongs on the overlay.
+	 * Events without signups have nobody signed up, so they show unless the user has opted out.
+	 */
+	public boolean isActiveEventOnOverlay(Event event)
+	{
+		String eventId = event.getEventId();
+		if (isOverlayHidden(eventId))
+		{
+			return false;
+		}
+		return event.isSignupsEnabled() ? isSignedUp(eventId) : !isNotInterested(eventId);
 	}
 
 	public void markNotInterested(String eventId)
@@ -795,7 +813,7 @@ public class ArceuusCCPlugin extends Plugin
 				String eventId = event.getEventId();
 				if ("ACTIVE".equals(event.getStatus()))
 				{
-					if (config.showActiveEvent() && isSignedUp(eventId) && !isOverlayHidden(eventId))
+					if (config.showActiveEvent() && isActiveEventOnOverlay(event))
 					{
 						infoBoxEvents.add(event);
 					}

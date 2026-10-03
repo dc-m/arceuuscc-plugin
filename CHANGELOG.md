@@ -4,6 +4,72 @@ All notable changes to the Arceuus CC RuneLite Plugin will be documented in this
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.4.1] - 2026-10-07
+
+### Added
+- The sidebar event card now shows the codeword for active events that have one
+
+### Fixed
+- **No-Signup Events Missing From Overlay**: Active events that don't use signups now show on the overlay and as an icon (with their codeword), instead of never appearing because nobody could sign up
+  - These events get a Hide Overlay / Show Overlay button in the sidebar while active
+  - If you marked the event Not Interested before it started, it stays off the overlay until you click Show Overlay
+
+## [2.4.0] - 2026-10-03
+
+### Added
+- **New Events On The Overlay**: Unread upcoming events now show on the overlay with a "NEW" label, however far away they are
+  - They stay until you read them (View Details, Mark as Read, Mark all as read) or click Not Interested
+  - Once read, an event comes back on the overlay when it is within 3 hours of starting, as before
+  - Works in all overlay modes; Icon mode shows "NEW" in the icon tooltip
+- **Mark as Read / Mark as Unread**: Each upcoming event in the sidebar has a button to flip it between read and unread
+  - Marking an event unread puts it back on the overlay as a reminder
+
+### Changed
+- Icon mode now follows the same rule as the other modes: an upcoming event only shows while unread or within 3 hours of starting (previously every upcoming event showed an icon)
+- The overlay can list several upcoming events at once, sorted soonest first
+- With "Show Starting Soon" turned off, the overlay skips events inside the 30 minute window and shows the next one, instead of showing nothing
+- Sidebar event buttons are now full width and all the same size
+
+### Fixed
+- **Minimal Overlay Overflow**: Long event titles no longer spill outside the overlay box; the box grows to fit and very long titles are shortened
+- **Signups On No-Signup Events**: The "Signups" count is no longer shown on the overlay, icon tooltip or details dialog for events that don't use signups
+
+## [2.3.2] - 2026-08-15
+
+### Fixed
+- **Countdowns Off By One Hour**: Fixed all countdown timers (overlay, infobox tooltips, sidebar) being an hour short for users on BST/other non-UTC timezones
+  - Event times are stored in UTC but were compared against the local clock; countdowns now use UTC consistently
+  - Upcoming events now appear on the overlay at the correct time, and "starting soon"/"ending soon" indicators trigger at the right moment
+  - "Event passed" detection in the sidebar no longer marks events as passed an hour early
+
+## [2.3.1] - 2026-07-26
+
+### Added
+- Events with codewords now show the current UTC date and time on the overlay and icon tooltip
+
+## [2.3.0] - 2026-03-11
+
+### Added
+- **Signups Optional Per Event**: Events can now have signups turned off; those events show "No signup required" and have no Sign Up button
+
+## [2.2.0] - 2026-03-08
+
+### Added
+- **Multi-Page Newsletters**: Newsletters with more than one page can now be paged through in the sidebar
+
+### Fixed
+- Fixed the icon not showing for events you are signed up to
+
+## [2.1.4] - 2026-02-20
+
+### Added
+- The overlay now tells you to click the Arceuus CC sidebar icon to request authorization when you're in the clan but not yet authorized
+- Icon is now the default overlay mode
+
+### Fixed
+- Fixed the sidebar flashing while unauthorized
+- Icons and notifications no longer show when you don't have access to the plugin
+
 ## [2.1.3] - 2026-02-09
 
 ### Fixed

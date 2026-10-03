@@ -66,6 +66,7 @@ public class EventPanelBuilder
 		addTitle(panel, event, status);
 		addTimeInfo(panel, event);
 		addCountdown(panel, event);
+		addCodeword(panel, event, status.isActive);
 		addSignupCount(panel, event);
 		addDescriptionPreview(panel, event);
 		addDetailsButton(panel, event);
@@ -76,8 +77,9 @@ public class EventPanelBuilder
 			addSignupButton(panel, event, status.isActive);
 		}
 
-		// Show/Hide Overlay toggle (only when signed up for active/upcoming)
-		if ((status.isActive || status.isUpcoming) && plugin.isSignedUp(event.getEventId()))
+		// Show/Hide Overlay toggle (when signed up for active/upcoming, or for active events without signups)
+		if (((status.isActive || status.isUpcoming) && plugin.isSignedUp(event.getEventId()))
+			|| (status.isActive && !event.isSignupsEnabled()))
 		{
 			addOverlayToggleButton(panel, event);
 		}
@@ -165,6 +167,22 @@ public class EventPanelBuilder
 		panel.add(Box.createVerticalStrut(2));
 	}
 
+	private void addCodeword(JPanel panel, Event event, boolean isActive)
+	{
+		String codeword = event.getCodeword();
+		if (!isActive || codeword == null || codeword.isEmpty())
+		{
+			return;
+		}
+
+		JLabel label = new JLabel("Codeword: " + codeword);
+		label.setFont(new Font("Arial", Font.BOLD, 11));
+		label.setForeground(PanelColors.GOLD);
+		label.setAlignmentX(Component.LEFT_ALIGNMENT);
+		panel.add(label);
+		panel.add(Box.createVerticalStrut(2));
+	}
+
 	private void addSignupCount(JPanel panel, Event event)
 	{
 		String text;
@@ -239,7 +257,8 @@ public class EventPanelBuilder
 
 	private void addOverlayToggleButton(JPanel panel, Event event)
 	{
-		boolean hidden = plugin.isOverlayHidden(event.getEventId());
+		boolean hidden = plugin.isOverlayHidden(event.getEventId())
+			|| (!event.isSignupsEnabled() && plugin.isNotInterested(event.getEventId()));
 		panel.add(Box.createVerticalStrut(4));
 		JButton button = new JButton(hidden ? "Show Overlay" : "Hide Overlay");
 		button.setFont(new Font("Arial", Font.PLAIN, 10));

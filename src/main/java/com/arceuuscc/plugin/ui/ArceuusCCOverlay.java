@@ -86,8 +86,8 @@ public class ArceuusCCOverlay extends Overlay
 
 				if ("ACTIVE".equals(event.getStatus()))
 				{
-					// Active events only show if user is signed up and not hidden
-					if (plugin.isSignedUp(eventId) && !plugin.isOverlayHidden(eventId))
+					// Active events show if signed up (or no signup is needed) and not hidden
+					if (plugin.isActiveEventOnOverlay(event))
 					{
 						activeEvents.add(event);
 					}
