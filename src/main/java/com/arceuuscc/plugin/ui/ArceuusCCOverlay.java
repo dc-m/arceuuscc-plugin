@@ -14,10 +14,12 @@ import net.runelite.client.ui.overlay.components.TitleComponent;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class ArceuusCCOverlay extends Overlay
@@ -32,7 +34,13 @@ public class ArceuusCCOverlay extends Overlay
 
 	private final ArceuusCCPlugin plugin;
 	private final ArceuusCCConfig config;
+	private static final int PANEL_WIDTH = 130;
+	private static final int MAX_PANEL_WIDTH = 220;
+	private static final int PANEL_PADDING = 10;
+
 	private final PanelComponent panelComponent = new PanelComponent();
+	private FontMetrics fontMetrics;
+	private int titleMaxWidth = PANEL_WIDTH - PANEL_PADDING;
 
 	public ArceuusCCOverlay(ArceuusCCPlugin plugin, ArceuusCCConfig config)
 	{
@@ -64,10 +72,15 @@ public class ArceuusCCOverlay extends Overlay
 		// Collect filtered events
 		List<Event> activeEvents = new ArrayList<>();
 		List<Event> upcomingEvents = new ArrayList<>();
+		boolean nextEventFound = false;
 
 		if (events != null)
 		{
-			for (Event event : events)
+			// Soonest first, so the "next event" and the display order follow start time
+			List<Event> sortedEvents = new ArrayList<>(events);
+			sortedEvents.sort(Comparator.comparing(e -> parseDateTime(e.getStartTime())));
+
+			for (Event event : sortedEvents)
 			{
 				String eventId = event.getEventId();
 
@@ -83,34 +96,31 @@ public class ArceuusCCOverlay extends Overlay
 				{
 					LocalDateTime startTime = parseDateTime(event.getStartTime());
 					long minutesUntil = ChronoUnit.MINUTES.between(now, startTime);
-					if (minutesUntil <= 180 && minutesUntil >= 0
-						&& !plugin.isNotInterested(eventId)
-						&& !plugin.isOverlayHidden(eventId))
+					if (minutesUntil < 0
+						|| plugin.isNotInterested(eventId)
+						|| plugin.isOverlayHidden(eventId)
+						|| (minutesUntil <= 30 && !config.showStartingSoon()))
+					{
+						continue;
+					}
+
+					// New (unread) events show regardless of start time,
+					// otherwise only the next event starting within 3 hours
+					boolean withinWindow = minutesUntil <= 180;
+					if (!plugin.isEventSeen(eventId) || (withinWindow && !nextEventFound))
 					{
 						upcomingEvents.add(event);
+					}
+					if (withinWindow)
+					{
+						nextEventFound = true;
 					}
 				}
 			}
 		}
 
 		boolean showActive = !activeEvents.isEmpty() && config.showActiveEvent();
-
-		// For DETAILED/MINIMAL, use only the first upcoming event
-		Event upcomingEvent = upcomingEvents.isEmpty() ? null : upcomingEvents.get(0);
-
-		boolean isStartingSoon = false;
-		boolean showUpcoming = upcomingEvent != null && config.showUpcoming();
-		if (upcomingEvent != null)
-		{
-			LocalDateTime startTime = parseDateTime(upcomingEvent.getStartTime());
-			long minutesUntil = ChronoUnit.MINUTES.between(now, startTime);
-			isStartingSoon = minutesUntil <= 30 && minutesUntil >= 0;
-
-			if (isStartingSoon && !config.showStartingSoon())
-			{
-				showUpcoming = false;
-			}
-		}
+		boolean showUpcoming = !upcomingEvents.isEmpty() && config.showUpcoming();
 
 		boolean showNewsletter = config.showNewsletterOverlay()
 			&& plugin.getPluginSettings().isShowNewsletterNotifications()
@@ -131,10 +141,32 @@ public class ArceuusCCOverlay extends Overlay
 
 		// Panel-based modes (DETAILED / MINIMAL)
 		panelComponent.getChildren().clear();
-		panelComponent.setPreferredSize(new Dimension(130, 0));
+		panelComponent.setPreferredSize(new Dimension(PANEL_WIDTH, 0));
+		fontMetrics = graphics.getFontMetrics();
 
 		if (mode == ArceuusCCConfig.OverlayMode.MINIMAL)
 		{
+			// Minimal mode uses the event title as a centered heading, which doesn't wrap,
+			// so grow the panel to fit the longest title (up to a limit)
+			int width = PANEL_WIDTH;
+			if (showActive)
+			{
+				for (Event active : activeEvents)
+				{
+					width = Math.max(width, fontMetrics.stringWidth(active.getTitle()) + PANEL_PADDING);
+				}
+			}
+			if (showUpcoming)
+			{
+				for (Event upcoming : upcomingEvents)
+				{
+					width = Math.max(width, fontMetrics.stringWidth(upcoming.getTitle()) + PANEL_PADDING);
+				}
+			}
+			width = Math.min(width, MAX_PANEL_WIDTH);
+			titleMaxWidth = width - PANEL_PADDING;
+			panelComponent.setPreferredSize(new Dimension(width, 0));
+
 			if (showActive)
 			{
 				for (Event active : activeEvents)
@@ -145,7 +177,10 @@ public class ArceuusCCOverlay extends Overlay
 			}
 			if (showUpcoming)
 			{
-				renderUpcomingEventMinimal(upcomingEvent, now, isStartingSoon);
+				for (Event upcoming : upcomingEvents)
+				{
+					renderUpcomingEventMinimal(upcoming, now, isEventStartingSoon(upcoming, now));
+				}
 			}
 		}
 		else
@@ -170,11 +205,15 @@ public class ArceuusCCOverlay extends Overlay
 
 			if (showUpcoming)
 			{
-				if (showActive)
+				for (int i = 0; i < upcomingEvents.size(); i++)
 				{
-					panelComponent.getChildren().add(LineComponent.builder().build());
+					if (i > 0 || showActive)
+					{
+						panelComponent.getChildren().add(LineComponent.builder().build());
+					}
+					Event upcoming = upcomingEvents.get(i);
+					renderUpcomingEvent(upcoming, now, isEventStartingSoon(upcoming, now));
 				}
-				renderUpcomingEvent(upcomingEvent, now, isStartingSoon);
 			}
 		}
 
@@ -253,12 +292,7 @@ public class ArceuusCCOverlay extends Overlay
 				.build());
 		}
 
-		panelComponent.getChildren().add(LineComponent.builder()
-			.left("Signups:")
-			.leftColor(Color.GRAY)
-			.right(String.valueOf(event.getSignups() != null ? event.getSignups().size() : 0))
-			.rightColor(Color.WHITE)
-			.build());
+		renderSignupCount(event);
 
 		if (event.getCodeword() != null && !event.getCodeword().isEmpty())
 		{
@@ -291,7 +325,7 @@ public class ArceuusCCOverlay extends Overlay
 		boolean hasCodeword = event.getCodeword() != null && !event.getCodeword().isEmpty();
 
 		panelComponent.getChildren().add(TitleComponent.builder()
-			.text(event.getTitle())
+			.text(fitTitle(event.getTitle()))
 			.color(Color.WHITE)
 			.build());
 
@@ -340,7 +374,7 @@ public class ArceuusCCOverlay extends Overlay
 		Color labelColor = isStartingSoon ? STARTING_SOON_YELLOW : UPCOMING_BLUE;
 
 		panelComponent.getChildren().add(TitleComponent.builder()
-			.text(event.getTitle())
+			.text(fitTitle(event.getTitle()))
 			.color(Color.WHITE)
 			.build());
 
@@ -358,6 +392,34 @@ public class ArceuusCCOverlay extends Overlay
 			panelComponent.getChildren().add(TitleComponent.builder()
 				.text("Starting now!")
 				.color(STARTING_SOON_YELLOW)
+				.build());
+		}
+
+		renderNewLabel(event);
+	}
+
+	private void renderSignupCount(Event event)
+	{
+		if (!event.isSignupsEnabled())
+		{
+			return;
+		}
+
+		panelComponent.getChildren().add(LineComponent.builder()
+			.left("Signups:")
+			.leftColor(Color.GRAY)
+			.right(String.valueOf(event.getSignups() != null ? event.getSignups().size() : 0))
+			.rightColor(Color.WHITE)
+			.build());
+	}
+
+	private void renderNewLabel(Event event)
+	{
+		if (!plugin.isEventSeen(event.getEventId()))
+		{
+			panelComponent.getChildren().add(TitleComponent.builder()
+				.text("NEW")
+				.color(LIVE_GREEN)
 				.build());
 		}
 	}
@@ -397,12 +459,7 @@ public class ArceuusCCOverlay extends Overlay
 				.build());
 		}
 
-		panelComponent.getChildren().add(LineComponent.builder()
-			.left("Signups:")
-			.leftColor(Color.GRAY)
-			.right(String.valueOf(event.getSignups() != null ? event.getSignups().size() : 0))
-			.rightColor(Color.WHITE)
-			.build());
+		renderSignupCount(event);
 
 		if (plugin.isSignedUp(event.getEventId()))
 		{
@@ -411,9 +468,33 @@ public class ArceuusCCOverlay extends Overlay
 				.leftColor(LIVE_GREEN)
 				.build());
 		}
+
+		renderNewLabel(event);
 	}
 
 	// ==================== UTILITY METHODS ====================
+
+	private String fitTitle(String title)
+	{
+		if (fontMetrics.stringWidth(title) <= titleMaxWidth)
+		{
+			return title;
+		}
+
+		String ellipsis = "...";
+		int end = title.length();
+		while (end > 0 && fontMetrics.stringWidth(title.substring(0, end) + ellipsis) > titleMaxWidth)
+		{
+			end--;
+		}
+		return title.substring(0, end).trim() + ellipsis;
+	}
+
+	private boolean isEventStartingSoon(Event event, LocalDateTime now)
+	{
+		long minutesUntil = ChronoUnit.MINUTES.between(now, parseDateTime(event.getStartTime()));
+		return minutesUntil <= 30 && minutesUntil >= 0;
+	}
 
 	private boolean isEventEndingSoon(Event event, LocalDateTime now)
 	{

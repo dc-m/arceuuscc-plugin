@@ -53,8 +53,11 @@ public class EventDetailsDialog
 		addInfoLabel(panel, "Duration: " + FormatUtils.formatDuration(event.getDurationMinutes()));
 		addInfoLabel(panel, "Status: " + event.getStatus());
 
-		int signupCount = event.getSignups() != null ? event.getSignups().size() : 0;
-		addInfoLabel(panel, "Signups: " + signupCount);
+		if (event.isSignupsEnabled())
+		{
+			int signupCount = event.getSignups() != null ? event.getSignups().size() : 0;
+			addInfoLabel(panel, "Signups: " + signupCount);
+		}
 
 		panel.add(Box.createVerticalStrut(15));
 	}

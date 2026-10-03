@@ -18,11 +18,13 @@ public class EventInfoBox extends InfoBox
 	private static final Color STARTING_SOON_YELLOW = new Color(255, 220, 0);
 	private static final Color UPCOMING_BLUE = new Color(114, 137, 218);
 
+	private final ArceuusCCPlugin plugin;
 	private final Event event;
 
 	public EventInfoBox(BufferedImage image, ArceuusCCPlugin plugin, Event event)
 	{
 		super(image, plugin);
+		this.plugin = plugin;
 		this.event = event;
 	}
 
@@ -77,10 +79,18 @@ public class EventInfoBox extends InfoBox
 			long secondsUntil = ChronoUnit.SECONDS.between(now, startTime);
 			Color color = secondsUntil <= 1800 ? STARTING_SOON_YELLOW : UPCOMING_BLUE;
 			sb.append("</br>").append(ColorUtil.wrapWithColorTag("Starts in: " + formatCountdown(secondsUntil), color));
+
+			if (!plugin.isEventSeen(event.getEventId()))
+			{
+				sb.append("</br>").append(ColorUtil.wrapWithColorTag("NEW", LIVE_GREEN));
+			}
 		}
 
-		int signups = event.getSignups() != null ? event.getSignups().size() : 0;
-		sb.append("</br>").append(ColorUtil.wrapWithColorTag("Signups: " + signups, Color.GRAY));
+		if (event.isSignupsEnabled())
+		{
+			int signups = event.getSignups() != null ? event.getSignups().size() : 0;
+			sb.append("</br>").append(ColorUtil.wrapWithColorTag("Signups: " + signups, Color.GRAY));
+		}
 
 		if (isActive && event.getCodeword() != null && !event.getCodeword().isEmpty())
 		{

@@ -710,6 +710,13 @@ public class ArceuusCCPlugin extends Plugin
 		SwingUtilities.invokeLater(() -> panel.updateEvents());
 	}
 
+	public void markEventAsUnseen(String eventId)
+	{
+		seenEventIds.remove(eventId);
+		saveSeenEventIds();
+		SwingUtilities.invokeLater(() -> panel.updateEvents());
+	}
+
 	public boolean isEventSeen(String eventId)
 	{
 		return seenEventIds.contains(eventId);
@@ -795,7 +802,12 @@ public class ArceuusCCPlugin extends Plugin
 				}
 				else if ("UPCOMING".equals(event.getStatus()))
 				{
-					if (config.showUpcoming() && !isSignedUp(eventId)
+					// New (unread) events show regardless of start time, otherwise only within 3 hours
+					long minutesUntil = java.time.temporal.ChronoUnit.MINUTES.between(now,
+						com.arceuuscc.plugin.util.DateTimeUtils.parseDateTime(event.getStartTime()));
+					boolean newOrSoon = !isEventSeen(eventId) || minutesUntil <= 180;
+
+					if (config.showUpcoming() && !isSignedUp(eventId) && minutesUntil >= 0 && newOrSoon
 						&& !isNotInterested(eventId) && !isOverlayHidden(eventId))
 					{
 						infoBoxEvents.add(event);

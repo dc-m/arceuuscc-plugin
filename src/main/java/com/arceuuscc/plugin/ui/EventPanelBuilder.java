@@ -88,8 +88,35 @@ public class EventPanelBuilder
 			addNotInterestedButton(panel, event);
 		}
 
+		// Read/unread toggle - unread events stay on the overlay as a reminder
+		if (status.isUpcoming)
+		{
+			addReadToggleButton(panel, event, status.isUnseen);
+		}
+
 		wrapper.add(panel, BorderLayout.CENTER);
 		return wrapper;
+	}
+
+	private void addReadToggleButton(JPanel panel, Event event, boolean isUnseen)
+	{
+		panel.add(Box.createVerticalStrut(4));
+		JButton button = new JButton(isUnseen ? "Mark as Read" : "Mark as Unread");
+		button.setFont(new Font("Arial", Font.PLAIN, 10));
+		button.setAlignmentX(Component.LEFT_ALIGNMENT);
+		button.setPreferredSize(new Dimension(100, 20));
+		button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+		button.addActionListener(e -> {
+			if (isUnseen)
+			{
+				plugin.markEventAsSeen(event.getEventId());
+			}
+			else
+			{
+				plugin.markEventAsUnseen(event.getEventId());
+			}
+		});
+		panel.add(button);
 	}
 
 	private void addTitle(JPanel panel, Event event, EventStatus status)
@@ -180,8 +207,8 @@ public class EventPanelBuilder
 		JButton button = new JButton("View Details");
 		button.setFont(new Font("Arial", Font.PLAIN, 10));
 		button.setAlignmentX(Component.LEFT_ALIGNMENT);
-		button.setPreferredSize(new Dimension(90, 20));
-		button.setMaximumSize(new Dimension(90, 20));
+		button.setPreferredSize(new Dimension(100, 20));
+		button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 		button.addActionListener(e -> {
 			plugin.markEventAsSeen(event.getEventId());
 			EventDetailsDialog.show(panel, event);
@@ -206,7 +233,7 @@ public class EventPanelBuilder
 		button.setForeground(Color.WHITE);
 		button.setFont(new Font("Arial", Font.BOLD, 11));
 		button.setPreferredSize(new Dimension(100, 24));
-		button.setMaximumSize(new Dimension(100, 24));
+		button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
 		panel.add(button);
 	}
 
@@ -218,7 +245,7 @@ public class EventPanelBuilder
 		button.setFont(new Font("Arial", Font.PLAIN, 10));
 		button.setAlignmentX(Component.LEFT_ALIGNMENT);
 		button.setPreferredSize(new Dimension(100, 20));
-		button.setMaximumSize(new Dimension(100, 20));
+		button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 		button.addActionListener(e -> plugin.toggleOverlayVisibility(event.getEventId()));
 		panel.add(button);
 	}
@@ -231,7 +258,7 @@ public class EventPanelBuilder
 		button.setFont(new Font("Arial", Font.PLAIN, 10));
 		button.setAlignmentX(Component.LEFT_ALIGNMENT);
 		button.setPreferredSize(new Dimension(100, 20));
-		button.setMaximumSize(new Dimension(100, 20));
+		button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 		button.addActionListener(e -> {
 			if (plugin.isNotInterested(event.getEventId()))
 			{
