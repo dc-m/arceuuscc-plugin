@@ -43,15 +43,6 @@ public class EventInfoBox extends InfoBox
 	@Override
 	public Color getTextColor()
 	{
-		boolean isActive = "ACTIVE".equals(event.getStatus());
-		if (isActive)
-		{
-			if (event.getCodeword() != null && !event.getCodeword().isEmpty())
-			{
-				return Color.BLACK;
-			}
-			return Color.WHITE;
-		}
 		return Color.WHITE;
 	}
 
@@ -90,12 +81,6 @@ public class EventInfoBox extends InfoBox
 		{
 			int signups = event.getSignups() != null ? event.getSignups().size() : 0;
 			sb.append("</br>").append(ColorUtil.wrapWithColorTag("Signups: " + signups, Color.GRAY));
-		}
-
-		if (isActive && event.getCodeword() != null && !event.getCodeword().isEmpty())
-		{
-			sb.append("</br>").append(ColorUtil.wrapWithColorTag("Codeword: " + event.getCodeword(), STARTING_SOON_YELLOW));
-			sb.append("</br>").append(ColorUtil.wrapWithColorTag(DateTimeUtils.currentUtcTimestamp(), Color.GRAY));
 		}
 
 		return sb.toString();

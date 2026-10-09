@@ -293,26 +293,6 @@ public class ArceuusCCOverlay extends Overlay
 		}
 
 		renderSignupCount(event);
-
-		if (event.getCodeword() != null && !event.getCodeword().isEmpty())
-		{
-			panelComponent.getChildren().add(LineComponent.builder()
-				.left("Codeword:")
-				.leftColor(Color.GRAY)
-				.right(event.getCodeword())
-				.rightColor(STARTING_SOON_YELLOW)
-				.build());
-
-			panelComponent.getChildren().add(LineComponent.builder()
-				.right(DateTimeUtils.currentUtcDate())
-				.rightColor(Color.GRAY)
-				.build());
-
-			panelComponent.getChildren().add(LineComponent.builder()
-				.right(DateTimeUtils.currentUtcTime())
-				.rightColor(Color.GRAY)
-				.build());
-		}
 	}
 
 	private void renderActiveEventMinimal(Event event, LocalDateTime now, boolean isEndingSoon)
@@ -322,48 +302,18 @@ public class ArceuusCCOverlay extends Overlay
 		long secondsLeft = ChronoUnit.SECONDS.between(now, endTime);
 
 		Color labelColor = isEndingSoon ? ENDING_SOON_RED : LIVE_GREEN;
-		boolean hasCodeword = event.getCodeword() != null && !event.getCodeword().isEmpty();
 
 		panelComponent.getChildren().add(TitleComponent.builder()
 			.text(fitTitle(event.getTitle()))
 			.color(Color.WHITE)
 			.build());
 
-		if (hasCodeword)
-		{
-			panelComponent.getChildren().add(LineComponent.builder()
-				.left("Ends In")
-				.leftColor(labelColor)
-				.right("Codeword")
-				.rightColor(labelColor)
-				.build());
-
-			panelComponent.getChildren().add(LineComponent.builder()
-				.left(formatCountdown(secondsLeft))
-				.leftColor(STARTING_SOON_YELLOW)
-				.right(event.getCodeword())
-				.rightColor(STARTING_SOON_YELLOW)
-				.build());
-
-			panelComponent.getChildren().add(LineComponent.builder()
-				.right(DateTimeUtils.currentUtcDate())
-				.rightColor(Color.GRAY)
-				.build());
-
-			panelComponent.getChildren().add(LineComponent.builder()
-				.right(DateTimeUtils.currentUtcTime())
-				.rightColor(Color.GRAY)
-				.build());
-		}
-		else
-		{
-			panelComponent.getChildren().add(LineComponent.builder()
-				.left("Ends In:")
-				.leftColor(labelColor)
-				.right(formatCountdown(secondsLeft))
-				.rightColor(STARTING_SOON_YELLOW)
-				.build());
-		}
+		panelComponent.getChildren().add(LineComponent.builder()
+			.left("Ends In:")
+			.leftColor(labelColor)
+			.right(formatCountdown(secondsLeft))
+			.rightColor(STARTING_SOON_YELLOW)
+			.build());
 	}
 
 	private void renderUpcomingEventMinimal(Event event, LocalDateTime now, boolean isStartingSoon)

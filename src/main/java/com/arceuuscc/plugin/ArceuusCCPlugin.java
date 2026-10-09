@@ -7,6 +7,7 @@ import com.arceuuscc.plugin.models.Newsletter;
 import com.arceuuscc.plugin.models.PluginSettings;
 import com.arceuuscc.plugin.ui.ArceuusCCOverlay;
 import com.arceuuscc.plugin.ui.ArceuusCCPanel;
+import com.arceuuscc.plugin.ui.CodewordOverlay;
 import com.arceuuscc.plugin.ui.EventInfoBox;
 import com.arceuuscc.plugin.ui.NewsletterInfoBox;
 import com.google.gson.Gson;
@@ -87,6 +88,7 @@ public class ArceuusCCPlugin extends Plugin
 	private static final String AUTH_TOKEN_KEY = "authToken";
 	private static final String AUTH_STATUS_KEY = "authStatus";
 	private static final String HIDDEN_OVERLAY_EVENTS_KEY = "hiddenOverlayEventIds";
+	private static final String HIDDEN_CODEWORD_EVENTS_KEY = "hiddenCodewordEventIds";
 	private static final String NOT_INTERESTED_EVENTS_KEY = "notInterestedEventIds";
 
 	@Getter
@@ -94,6 +96,7 @@ public class ArceuusCCPlugin extends Plugin
 
 	private ArceuusCCPanel panel;
 	private ArceuusCCOverlay overlay;
+	private CodewordOverlay codewordOverlay;
 	private NavigationButton navButton;
 
 	@Getter
@@ -114,6 +117,8 @@ public class ArceuusCCPlugin extends Plugin
 	private final java.util.Set<String> seenEventIds = new java.util.HashSet<>();
 	// Track which events the user has hidden from the overlay
 	private final java.util.Set<String> hiddenOverlayEventIds = new java.util.HashSet<>();
+	// Track which events the user has hidden from the codeword overlay
+	private final java.util.Set<String> hiddenCodewordEventIds = new java.util.HashSet<>();
 	// Track which upcoming events the user marked "Not Interested"
 	private final java.util.Set<String> notInterestedEventIds = new java.util.HashSet<>();
 	// InfoBox tracking for ICON_ONLY mode
@@ -167,6 +172,9 @@ public class ArceuusCCPlugin extends Plugin
 
 			overlay = new ArceuusCCOverlay(this, config);
 			overlayManager.add(overlay);
+
+			codewordOverlay = new CodewordOverlay(this, config);
+			overlayManager.add(codewordOverlay);
 
 			try
 			{
@@ -232,6 +240,7 @@ public class ArceuusCCPlugin extends Plugin
 
 		clientToolbar.removeNavigation(navButton);
 		overlayManager.remove(overlay);
+		overlayManager.remove(codewordOverlay);
 		clearInfoBoxes();
 
 		if (httpClient != null)
@@ -773,6 +782,40 @@ public class ArceuusCCPlugin extends Plugin
 		return event.isSignupsEnabled() ? isSignedUp(eventId) : !isNotInterested(eventId);
 	}
 
+	public void toggleCodewordVisibility(String eventId)
+	{
+		if (!hiddenCodewordEventIds.remove(eventId))
+		{
+			hiddenCodewordEventIds.add(eventId);
+		}
+		saveHiddenCodewordEventIds();
+		SwingUtilities.invokeLater(() -> panel.updateEvents());
+	}
+
+	public boolean isCodewordHidden(String eventId)
+	{
+		return hiddenCodewordEventIds.contains(eventId);
+	}
+
+	/**
+	 * Whether an active event has a codeword the user can put on the codeword overlay.
+	 * Hiding the event from the main overlay does not affect this.
+	 */
+	public boolean canShowCodeword(Event event)
+	{
+		if (!"ACTIVE".equals(event.getStatus()) || event.getCodeword() == null || event.getCodeword().isEmpty())
+		{
+			return false;
+		}
+		String eventId = event.getEventId();
+		return event.isSignupsEnabled() ? isSignedUp(eventId) : !isNotInterested(eventId);
+	}
+
+	public boolean isCodewordOnOverlay(Event event)
+	{
+		return canShowCodeword(event) && !isCodewordHidden(event.getEventId());
+	}
+
 	public void markNotInterested(String eventId)
 	{
 		notInterestedEventIds.add(eventId);
@@ -969,6 +1012,18 @@ public class ArceuusCCPlugin extends Plugin
 			}
 		}
 
+		String hiddenCodewordStr = configManager.getConfiguration(CONFIG_GROUP, HIDDEN_CODEWORD_EVENTS_KEY);
+		if (hiddenCodewordStr != null && !hiddenCodewordStr.isEmpty())
+		{
+			for (String id : hiddenCodewordStr.split(","))
+			{
+				if (!id.isEmpty())
+				{
+					hiddenCodewordEventIds.add(id);
+				}
+			}
+		}
+
 		String notInterestedStr = configManager.getConfiguration(CONFIG_GROUP, NOT_INTERESTED_EVENTS_KEY);
 		if (notInterestedStr != null && !notInterestedStr.isEmpty())
 		{
@@ -1007,6 +1062,12 @@ public class ArceuusCCPlugin extends Plugin
 	{
 		String joined = String.join(",", hiddenOverlayEventIds);
 		configManager.setConfiguration(CONFIG_GROUP, HIDDEN_OVERLAY_EVENTS_KEY, joined);
+	}
+
+	private void saveHiddenCodewordEventIds()
+	{
+		String joined = String.join(",", hiddenCodewordEventIds);
+		configManager.setConfiguration(CONFIG_GROUP, HIDDEN_CODEWORD_EVENTS_KEY, joined);
 	}
 
 	private void saveNotInterestedEventIds()

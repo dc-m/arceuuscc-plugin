@@ -50,12 +50,14 @@ You can also withdraw your signup by clicking the button again.
 
 ### In-Game Overlay
 The overlay shows:
-- Active events with time remaining and codeword (if set)
+- Active events with time remaining
 - Upcoming events starting within 3 hours
 - New newsletter alerts
 - Whether you're signed up for displayed events
 
 Choose between **Detailed** mode (full information) or **Minimal** mode (compact display) in settings.
+
+Active events with a codeword also get a separate one-line **codeword overlay** showing the codeword and the current UTC date and time. It can be moved independently of the event overlay, turned off in settings, or hidden per event from the sidebar.
 
 ### Configuration Options
 
@@ -69,6 +71,7 @@ Choose between **Detailed** mode (full information) or **Minimal** mode (compact
 | Show Upcoming | Display future scheduled events |
 | Show Ending Soon | Highlight events ending within 30 minutes |
 | Show Newsletter Alert | Display overlay when new newsletter available |
+| Show Codeword Overlay | Display the separate codeword and date/time overlay for active events |
 | **Notifications** | |
 | Enable Notifications | Master toggle for all notifications |
 | Notify Event Starting | Alert when events are about to start |

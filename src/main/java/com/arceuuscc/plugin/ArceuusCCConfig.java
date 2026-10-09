@@ -210,4 +210,16 @@ public interface ArceuusCCConfig extends Config
 		return true;
 	}
 
+	@ConfigItem(
+		keyName = "showCodewordOverlay",
+		name = "Show Codeword Overlay",
+		description = "Show a separate, movable overlay with the codeword and current UTC date/time for active events",
+		position = 6,
+		section = overlaySection
+	)
+	default boolean showCodewordOverlay()
+	{
+		return true;
+	}
+
 }

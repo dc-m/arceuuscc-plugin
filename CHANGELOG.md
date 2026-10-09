@@ -4,6 +4,19 @@ All notable changes to the Arceuus CC RuneLite Plugin will be documented in this
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.5.0] - 2026-10-09
+
+### Added
+- **Codeword Overlay**: The codeword and current UTC date/time for an active event now show on their own one-line overlay
+  - It can be moved separately from the event overlay and shows in every overlay mode (Detailed, Minimal and Icon)
+  - New "Show Codeword Overlay" setting turns it on or off for all events
+  - Each active event with a codeword has a Hide Codeword Overlay / Show Codeword Overlay button in the sidebar
+  - The setting and the per-event button are independent of each other, and of Show Overlay / Hide Overlay
+
+### Changed
+- The codeword and date/time are no longer shown inside the Detailed and Minimal overlays or the icon tooltip
+- Icon text is now always white; it was black (and unreadable) for active events with a codeword
+
 ## [2.4.1] - 2026-10-07
 
 ### Added

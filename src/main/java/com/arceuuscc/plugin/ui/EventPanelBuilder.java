@@ -84,6 +84,12 @@ public class EventPanelBuilder
 			addOverlayToggleButton(panel, event);
 		}
 
+		// Show/Hide Codeword toggle - independent of the event overlay toggle above
+		if (plugin.canShowCodeword(event))
+		{
+			addCodewordToggleButton(panel, event);
+		}
+
 		// Not Interested button (only for upcoming events user is NOT signed up for)
 		if (status.isUpcoming && !plugin.isSignedUp(event.getEventId()))
 		{
@@ -266,6 +272,19 @@ public class EventPanelBuilder
 		button.setPreferredSize(new Dimension(100, 20));
 		button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 		button.addActionListener(e -> plugin.toggleOverlayVisibility(event.getEventId()));
+		panel.add(button);
+	}
+
+	private void addCodewordToggleButton(JPanel panel, Event event)
+	{
+		boolean hidden = plugin.isCodewordHidden(event.getEventId());
+		panel.add(Box.createVerticalStrut(4));
+		JButton button = new JButton(hidden ? "Show Codeword Overlay" : "Hide Codeword Overlay");
+		button.setFont(new Font("Arial", Font.PLAIN, 10));
+		button.setAlignmentX(Component.LEFT_ALIGNMENT);
+		button.setPreferredSize(new Dimension(100, 20));
+		button.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+		button.addActionListener(e -> plugin.toggleCodewordVisibility(event.getEventId()));
 		panel.add(button);
 	}
 
